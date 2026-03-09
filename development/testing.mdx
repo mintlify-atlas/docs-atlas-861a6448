@@ -1,0 +1,866 @@
+---
+title: Testing Guide
+description: Learn how to write and run tests for the Rodando Driver project
+icon: flask
+---
+
+## Overview
+
+The Rodando Driver project uses **Karma** as the test runner and **Jasmine** as the testing framework. All components, services, guards, and interceptors should have corresponding unit tests.
+
+## Test Configuration
+
+### Karma Configuration
+
+The project uses the following Karma setup:
+
+```javascript karma.conf.js
+module.exports = function (config) {
+  config.set({
+    basePath: '',
+    frameworks: ['jasmine', '@angular-devkit/build-angular'],
+    plugins: [
+      require('karma-jasmine'),
+      require('karma-chrome-launcher'),
+      require('karma-jasmine-html-reporter'),
+      require('karma-coverage'),
+      require('@angular-devkit/build-angular/plugins/karma')
+    ],
+    browsers: ['Chrome'],
+    singleRun: false,
+    restartOnFileChange: true,
+    coverageReporter: {
+      dir: require('path').join(__dirname, './coverage/app'),
+      subdir: '.',
+      reporters: [
+        { type: 'html' },
+        { type: 'text-summary' }
+      ]
+    }
+  });
+};
+```
+
+### Test Dependencies
+
+Testing framework versions:
+
+```json package.json
+{
+  "devDependencies": {
+    "@types/jasmine": "5.1.0",
+    "jasmine-core": "5.1.0",
+    "jasmine-spec-reporter": "5.0.0",
+    "karma": "6.4.0",
+    "karma-chrome-launcher": "3.2.0",
+    "karma-coverage": "2.2.0",
+    "karma-jasmine": "5.1.0",
+    "karma-jasmine-html-reporter": "2.1.0"
+  }
+}
+```
+
+## Running Tests
+
+<CodeGroup>
+```bash Run All Tests
+npm test
+# or
+ng test
+```
+
+```bash Run Tests with Coverage
+ng test --code-coverage
+```
+
+```bash Single Run (CI)
+ng test --watch=false --browsers=ChromeHeadless
+```
+
+```bash Specific File
+ng test --include='**/auth.service.spec.ts'
+```
+</CodeGroup>
+
+<Note>
+Tests run in **watch mode** by default. Press `Ctrl+C` to stop watching.
+</Note>
+
+## Test File Structure
+
+### File Naming Convention
+
+Test files should be colocated with source files:
+
+```
+src/app/
+├── core/
+│   ├── services/
+│   │   ├── http/
+│   │   │   ├── auth.service.ts
+│   │   │   └── auth.service.spec.ts       ← Test file
+│   ├── guards/
+│   │   ├── auth.guard.ts
+│   │   └── auth.guard.spec.ts             ← Test file
+├── features/
+│   ├── tabs/
+│   │   ├── home/
+│   │   │   ├── home.component.ts
+│   │   │   └── home.component.spec.ts     ← Test file
+```
+
+### Basic Test Template
+
+All test files follow this structure:
+
+```typescript
+import { TestBed } from '@angular/core/testing';
+import { MyService } from './my.service';
+
+describe('MyService', () => {
+  let service: MyService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(MyService);
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  // Additional tests...
+});
+```
+
+## Testing Services
+
+### Simple Service Test
+
+```typescript auth.service.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { AuthService } from './auth.service';
+import { environment } from 'src/environments/environment';
+
+describe('AuthService', () => {
+  let service: AuthService;
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [AuthService]
+    });
+    
+    service = TestBed.inject(AuthService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify(); // Ensure no outstanding requests
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  describe('login', () => {
+    it('should return access token on successful login', (done) => {
+      const mockPayload = {
+        email: 'driver@example.com',
+        password: 'password123'
+      };
+      
+      const mockResponse = {
+        success: true,
+        data: {
+          accessToken: 'mock-token',
+          sessionType: 'web'
+        }
+      };
+
+      service.login(mockPayload, { withCredentials: true }).subscribe({
+        next: (response) => {
+          expect(response.accessToken).toBe('mock-token');
+          expect(response.sessionType).toBe('web');
+          done();
+        },
+        error: done.fail
+      });
+
+      const req = httpMock.expectOne(`${environment.apiUrl}/auth/login`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(mockPayload);
+      expect(req.request.withCredentials).toBe(true);
+      
+      req.flush(mockResponse);
+    });
+
+    it('should handle login error', (done) => {
+      const mockPayload = {
+        email: 'driver@example.com',
+        password: 'wrong-password'
+      };
+
+      service.login(mockPayload).subscribe({
+        next: () => done.fail('should have failed'),
+        error: (error) => {
+          expect(error).toBeTruthy();
+          expect(error.message).toContain('Invalid credentials');
+          done();
+        }
+      });
+
+      const req = httpMock.expectOne(`${environment.apiUrl}/auth/login`);
+      req.flush(
+        { message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' },
+        { status: 401, statusText: 'Unauthorized' }
+      );
+    });
+  });
+
+  describe('refresh', () => {
+    it('should refresh token using cookie for web', (done) => {
+      const mockResponse = {
+        success: true,
+        data: {
+          accessToken: 'new-token',
+          accessTokenExpiresAt: Date.now() + 3600000
+        }
+      };
+
+      service.refresh(undefined, true).subscribe({
+        next: (response) => {
+          expect(response.accessToken).toBe('new-token');
+          done();
+        },
+        error: done.fail
+      });
+
+      const req = httpMock.expectOne(`${environment.apiUrl}/auth/refresh`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.withCredentials).toBe(true);
+      req.flush(mockResponse);
+    });
+
+    it('should refresh token using refreshToken for mobile', (done) => {
+      const mockRefreshToken = 'refresh-token-123';
+      const mockResponse = {
+        success: true,
+        data: {
+          accessToken: 'new-access-token',
+          refreshToken: 'new-refresh-token',
+          accessTokenExpiresAt: Date.now() + 3600000
+        }
+      };
+
+      service.refresh(mockRefreshToken, false).subscribe({
+        next: (response) => {
+          expect(response.accessToken).toBe('new-access-token');
+          expect(response.refreshToken).toBe('new-refresh-token');
+          done();
+        },
+        error: done.fail
+      });
+
+      const req = httpMock.expectOne(`${environment.apiUrl}/auth/refresh`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ refreshToken: mockRefreshToken });
+      req.flush(mockResponse);
+    });
+  });
+});
+```
+
+<Tip>
+**Service Testing Best Practices:**
+- Mock HTTP requests with `HttpClientTestingModule`
+- Verify all HTTP requests with `httpMock.verify()`
+- Test both success and error scenarios
+- Use `done()` callback for async operations
+- Test request method, URL, body, and headers
+</Tip>
+
+### Testing Services with Dependencies
+
+```typescript trip-api.service.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { TripApiService } from './trip-api.service';
+import { AuthService } from './auth.service';
+
+describe('TripApiService', () => {
+  let service: TripApiService;
+  let authServiceSpy: jasmine.SpyObj<AuthService>;
+
+  beforeEach(() => {
+    // Create spy object
+    const spy = jasmine.createSpyObj('AuthService', ['getAccessToken']);
+
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        TripApiService,
+        { provide: AuthService, useValue: spy }
+      ]
+    });
+
+    service = TestBed.inject(TripApiService);
+    authServiceSpy = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
+  });
+
+  it('should include auth token in requests', () => {
+    authServiceSpy.getAccessToken.and.returnValue('mock-token');
+    
+    // Test implementation
+    expect(authServiceSpy.getAccessToken).toHaveBeenCalled();
+  });
+});
+```
+
+## Testing Components
+
+### Ionic Component Test
+
+```typescript home.component.spec.ts
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { IonicModule } from '@ionic/angular';
+import { of } from 'rxjs';
+
+import HomeComponent from './home.component';
+import { DriverAvailabilityFacade } from '@/app/store/driver-availability/driver.facade';
+
+describe('HomeComponent', () => {
+  let component: HomeComponent;
+  let fixture: ComponentFixture<HomeComponent>;
+  let mockFacade: jasmine.SpyObj<DriverAvailabilityFacade>;
+
+  beforeEach(waitForAsync(() => {
+    // Create spy for facade
+    mockFacade = jasmine.createSpyObj('DriverAvailabilityFacade', [
+      'bootstrap',
+      'setAvailableForTrips',
+      'canToggle'
+    ]);
+    
+    // Setup spy return values
+    mockFacade.bootstrap.and.returnValue(Promise.resolve());
+    mockFacade.canToggle.and.returnValue(true);
+
+    TestBed.configureTestingModule({
+      imports: [
+        IonicModule.forRoot(),
+        HomeComponent // Standalone component
+      ],
+      providers: [
+        { provide: DriverAvailabilityFacade, useValue: mockFacade }
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(HomeComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  }));
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should bootstrap driver availability on init', () => {
+    expect(mockFacade.bootstrap).toHaveBeenCalled();
+  });
+
+  it('should toggle driver availability', () => {
+    component.toggleAvailable(true);
+    
+    expect(mockFacade.setAvailableForTrips).toHaveBeenCalledWith(true);
+  });
+
+  it('should set active quick tab', () => {
+    component.setQuick('wallet');
+    
+    expect(component.activeQuick).toBe('wallet');
+    expect(component.isActive('wallet')).toBe(true);
+    expect(component.isActive('hoy')).toBe(false);
+  });
+});
+```
+
+<Note>
+**Component Testing Tips:**
+- Use `waitForAsync()` for async component setup
+- Import `IonicModule.forRoot()` for Ionic components
+- Mock dependencies with `jasmine.createSpyObj()`
+- Call `fixture.detectChanges()` to trigger change detection
+- Test component logic, not implementation details
+</Note>
+
+### Testing Component Templates
+
+```typescript
+import { DebugElement } from '@angular/core';
+import { By } from '@angular/platform-browser';
+
+it('should display user name', () => {
+  component.user = { id: '1', name: 'John Doe' };
+  fixture.detectChanges();
+  
+  const nameElement: HTMLElement = fixture.nativeElement.querySelector('.user-name');
+  expect(nameElement.textContent).toContain('John Doe');
+});
+
+it('should disable button when loading', () => {
+  component.loading = true;
+  fixture.detectChanges();
+  
+  const button: DebugElement = fixture.debugElement.query(By.css('ion-button'));
+  expect(button.nativeElement.disabled).toBe(true);
+});
+
+it('should call save method on button click', () => {
+  spyOn(component, 'save');
+  
+  const button: DebugElement = fixture.debugElement.query(By.css('.save-button'));
+  button.nativeElement.click();
+  
+  expect(component.save).toHaveBeenCalled();
+});
+```
+
+## Testing Guards
+
+```typescript auth.guard.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { CanActivateFn } from '@angular/router';
+
+import { authGuard } from './auth.guard';
+import { AuthStore } from '@/app/store/auth/auth.store';
+
+describe('authGuard', () => {
+  let mockRouter: jasmine.SpyObj<Router>;
+  let mockAuthStore: any;
+  
+  const executeGuard: CanActivateFn = (...guardParameters) => 
+    TestBed.runInInjectionContext(() => authGuard(...guardParameters));
+
+  beforeEach(() => {
+    mockRouter = jasmine.createSpyObj('Router', ['navigateByUrl']);
+    mockAuthStore = {
+      accessToken: jasmine.createSpy('accessToken')
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: Router, useValue: mockRouter },
+        { provide: AuthStore, useValue: mockAuthStore }
+      ]
+    });
+  });
+
+  it('should allow access when authenticated', () => {
+    mockAuthStore.accessToken.and.returnValue('valid-token');
+    
+    const result = executeGuard({} as any, {} as any);
+    
+    expect(result).toBe(true);
+  });
+
+  it('should redirect to login when not authenticated', () => {
+    mockAuthStore.accessToken.and.returnValue(null);
+    
+    const result = executeGuard({} as any, {} as any);
+    
+    expect(result).toBe(false);
+    expect(mockRouter.navigateByUrl).toHaveBeenCalledWith('/auth/login');
+  });
+});
+```
+
+## Testing Interceptors
+
+```typescript auth.interceptor.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { HttpClient, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+
+import { authInterceptor } from './auth.interceptor';
+import { AuthStore } from '@/app/store/auth/auth.store';
+
+describe('authInterceptor', () => {
+  let httpClient: HttpClient;
+  let httpMock: HttpTestingController;
+  let mockAuthStore: any;
+
+  beforeEach(() => {
+    mockAuthStore = {
+      accessToken: jasmine.createSpy('accessToken').and.returnValue('mock-token')
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        { provide: AuthStore, useValue: mockAuthStore }
+      ]
+    });
+
+    httpClient = TestBed.inject(HttpClient);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should add Authorization header when token exists', () => {
+    httpClient.get('/api/test').subscribe();
+
+    const req = httpMock.expectOne('/api/test');
+    expect(req.request.headers.has('Authorization')).toBe(true);
+    expect(req.request.headers.get('Authorization')).toBe('Bearer mock-token');
+    
+    req.flush({});
+  });
+
+  it('should not add Authorization header when no token', () => {
+    mockAuthStore.accessToken.and.returnValue(null);
+    
+    httpClient.get('/api/test').subscribe();
+
+    const req = httpMock.expectOne('/api/test');
+    expect(req.request.headers.has('Authorization')).toBe(false);
+    
+    req.flush({});
+  });
+});
+```
+
+## Testing NgRx Signals Store
+
+```typescript auth.store.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { AuthStore } from './auth.store';
+
+describe('AuthStore', () => {
+  let store: InstanceType<typeof AuthStore>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [AuthStore]
+    });
+    
+    store = TestBed.inject(AuthStore);
+  });
+
+  it('should initialize with default state', () => {
+    expect(store.accessToken()).toBeNull();
+    expect(store.user()).toBeNull();
+    expect(store.loading()).toBe(false);
+  });
+
+  it('should set access token', () => {
+    store.setAuth({ accessToken: 'test-token' });
+    
+    expect(store.accessToken()).toBe('test-token');
+  });
+
+  it('should set user', () => {
+    const mockUser = { id: '1', email: 'test@example.com' };
+    store.setUser(mockUser as any);
+    
+    expect(store.user()).toEqual(mockUser);
+  });
+
+  it('should clear state', () => {
+    store.setAuth({ 
+      accessToken: 'token',
+      user: { id: '1', email: 'test@example.com' } as any
+    });
+    
+    store.clear();
+    
+    expect(store.accessToken()).toBeNull();
+    expect(store.user()).toBeNull();
+  });
+});
+```
+
+## Test Coverage
+
+### Running Coverage Reports
+
+```bash
+ng test --code-coverage --watch=false
+```
+
+Coverage reports are generated in `./coverage/app/`.
+
+### Coverage Goals
+
+<Note>
+**Coverage Targets:**
+- Statements: 80%+
+- Branches: 75%+
+- Functions: 80%+
+- Lines: 80%+
+</Note>
+
+### Viewing Coverage
+
+Open the HTML report:
+
+```bash
+open coverage/app/index.html
+```
+
+## Best Practices
+
+### Test Organization
+
+<CodeGroup>
+```typescript AAA Pattern (Arrange-Act-Assert)
+it('should calculate total price', () => {
+  // Arrange
+  const service = TestBed.inject(PriceService);
+  const items = [{ price: 10 }, { price: 20 }];
+  
+  // Act
+  const total = service.calculateTotal(items);
+  
+  // Assert
+  expect(total).toBe(30);
+});
+```
+
+```typescript Descriptive Test Names
+// ✅ Good
+it('should return null when user is not authenticated', () => {});
+it('should emit error when API request fails', () => {});
+it('should disable submit button when form is invalid', () => {});
+
+// ❌ Bad
+it('test 1', () => {});
+it('should work', () => {});
+it('auth', () => {});
+```
+</CodeGroup>
+
+### Mocking Dependencies
+
+```typescript
+// Create comprehensive spies
+const mockAuthFacade = jasmine.createSpyObj('AuthFacade', 
+  ['login', 'logout', 'refresh'],
+  { user: signal(null), loading: signal(false) }  // Properties
+);
+
+// Setup different return values per test
+mockAuthFacade.login.and.returnValue(of(mockUser));
+mockAuthFacade.login.and.returnValue(throwError(() => new Error('Failed')));
+```
+
+### Testing Async Code
+
+<CodeGroup>
+```typescript Observables
+it('should load data', (done) => {
+  service.getData().subscribe({
+    next: (data) => {
+      expect(data).toBeDefined();
+      done();
+    },
+    error: done.fail
+  });
+});
+```
+
+```typescript Promises
+it('should resolve promise', async () => {
+  const result = await service.fetchData();
+  expect(result).toBeTruthy();
+});
+```
+
+```typescript fakeAsync
+import { fakeAsync, tick } from '@angular/core/testing';
+
+it('should debounce input', fakeAsync(() => {
+  component.onInput('test');
+  tick(300);
+  
+  expect(component.searchValue).toBe('test');
+}));
+```
+</CodeGroup>
+
+### Don't Test Implementation Details
+
+```typescript
+// ✅ Good - Test behavior
+it('should show error message when login fails', () => {
+  // Test that error is displayed, not how it's stored internally
+});
+
+// ❌ Bad - Test implementation
+it('should set errorMessage property', () => {
+  // Testing internal state instead of behavior
+});
+```
+
+## Common Testing Patterns
+
+### Testing Forms
+
+```typescript
+import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
+
+beforeEach(() => {
+  TestBed.configureTestingModule({
+    imports: [ReactiveFormsModule, MyComponent],
+    providers: [FormBuilder]
+  });
+});
+
+it('should validate email format', () => {
+  component.form.controls['email'].setValue('invalid-email');
+  
+  expect(component.form.controls['email'].valid).toBe(false);
+  expect(component.form.controls['email'].errors?.['email']).toBeTruthy();
+});
+
+it('should disable submit when form is invalid', () => {
+  component.form.patchValue({ email: '', password: '' });
+  fixture.detectChanges();
+  
+  const submitButton: HTMLButtonElement = fixture.nativeElement.querySelector('button[type="submit"]');
+  expect(submitButton.disabled).toBe(true);
+});
+```
+
+### Testing Routing
+
+```typescript
+import { Router } from '@angular/router';
+import { Location } from '@angular/common';
+
+let router: Router;
+let location: Location;
+
+beforeEach(() => {
+  router = TestBed.inject(Router);
+  location = TestBed.inject(Location);
+});
+
+it('should navigate to trips page', async () => {
+  await router.navigateByUrl('/trips');
+  
+  expect(location.path()).toBe('/trips');
+});
+```
+
+### Testing Error Handling
+
+```typescript
+it('should handle network error gracefully', (done) => {
+  service.getData().subscribe({
+    next: () => done.fail('should have failed'),
+    error: (error) => {
+      expect(error.message).toContain('Network error');
+      done();
+    }
+  });
+  
+  const req = httpMock.expectOne('/api/data');
+  req.error(new ProgressEvent('error'));
+});
+```
+
+## Debugging Tests
+
+### Browser DevTools
+
+Tests run in Chrome, so you can:
+
+1. Open Chrome DevTools
+2. Set breakpoints in test code
+3. Use `debugger;` statements
+4. Inspect component state
+
+### Console Logging
+
+```typescript
+it('should do something', () => {
+  console.log('Component state:', component);
+  console.log('Fixture:', fixture.debugElement.nativeElement.innerHTML);
+  
+  // Test code
+});
+```
+
+### Focused Tests
+
+Run specific tests:
+
+```typescript
+// Only run this describe block
+fdescribe('MyComponent', () => {
+  // ...
+});
+
+// Only run this test
+fit('should do something', () => {
+  // ...
+});
+
+// Skip this test
+xit('should be skipped', () => {
+  // ...
+});
+```
+
+## CI/CD Integration
+
+Run tests in CI pipelines:
+
+```yaml .github/workflows/test.yml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/app/lcov.info
+```
+
+## Summary Checklist
+
+Before submitting code:
+
+- [ ] All tests pass (`npm test`)
+- [ ] New features have tests
+- [ ] Bug fixes have regression tests
+- [ ] Tests follow AAA pattern
+- [ ] Mocks are properly configured
+- [ ] Async operations handled correctly
+- [ ] Coverage meets minimum thresholds
+- [ ] No focused/skipped tests (fit/xit/fdescribe/xdescribe)
+- [ ] Tests are deterministic (no flakiness)
+- [ ] Test names are descriptive
+
+<Tip>
+Write tests as you code, not after. Test-driven development (TDD) leads to better design and fewer bugs.
+</Tip>

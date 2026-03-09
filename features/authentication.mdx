@@ -1,0 +1,321 @@
+---
+title: Authentication
+description: Learn how the Rodando Driver app handles user authentication with support for both web and mobile sessions
+---
+
+The Rodando Driver app implements a comprehensive authentication system that supports both **web** and **mobile** session types, with different token management strategies for each platform.
+
+## Authentication Flow
+
+The authentication process follows a standard OAuth2-like flow with JWT tokens and refresh token rotation:
+
+<Steps>
+  <Step title="User Login">
+    The driver enters credentials (email/password) through the login form.
+  </Step>
+  
+  <Step title="Token Issuance">
+    The backend validates credentials and returns:
+    - `accessToken` - Short-lived JWT for API requests
+    - `refreshToken` - Long-lived token (mobile only)
+    - `sessionType` - Either `'web'` or `'mobile'`
+    - `accessTokenExpiresAt` - Unix timestamp for token expiry
+  </Step>
+  
+  <Step title="Token Storage">
+    Tokens are stored based on session type:
+    - **Web**: `refreshToken` stored in HttpOnly cookies
+    - **Mobile**: Both tokens stored in localStorage
+  </Step>
+  
+  <Step title="Authenticated Requests">
+    The `accessToken` is attached to all API requests via the `Authorization` header.
+  </Step>
+</Steps>
+
+## Session Types
+
+The app supports two distinct session types with different security models:
+
+<Tabs>
+  <Tab title="Mobile Session">
+    Mobile sessions store the refresh token locally and send it in request bodies.
+
+    ```typescript
+    interface RefreshResponseMobile {
+      accessToken: string;
+      refreshToken: string;  // New refresh token (rotation)
+      accessTokenExpiresAt: number;
+    }
+    ```
+
+    **Characteristics:**
+    - Refresh tokens sent in request body
+    - Token rotation on every refresh
+    - Stored in localStorage
+    - Longer token lifetime
+  </Tab>
+
+  <Tab title="Web Session">
+    Web sessions use HttpOnly cookies for enhanced security.
+
+    ```typescript
+    interface RefreshResponseWeb {
+      accessToken: string;
+      accessTokenExpiresAt: number;
+      // refreshToken stored in HttpOnly cookie
+    }
+    ```
+
+    **Characteristics:**
+    - Refresh token in HttpOnly cookie
+    - Protected from XSS attacks
+    - Shorter token lifetime
+    - Requires `withCredentials: true`
+  </Tab>
+</Tabs>
+
+## Login Implementation
+
+The login process is handled by the `AuthService` with automatic response validation:
+
+```typescript
+login(payload: LoginPayload, httpOptions?: { withCredentials?: boolean }): Observable<LoginResponse> {
+  const url = `${this.baseUrl}/auth/login`;
+  return this.http.post<ApiResponse<LoginResponse>>(url, payload, httpOptions).pipe(
+    map(resp => this.unwrap<ApiResponse<LoginResponse>, LoginResponse>(resp, url)),
+    // Validate required fields
+    map(res => {
+      if (!res?.accessToken || !res?.sessionType) {
+        throw new Error('Login response malformed: missing accessToken or sessionType');
+      }
+      return res;
+    }),
+    catchError(err => this.handleErrorAsApiError(err, url))
+  );
+}
+```
+
+**Login Payload:**
+
+```typescript
+interface LoginPayload {
+  email: string;
+  password: string;
+  audience?: 'driver_app' | 'passenger_app' | 'admin_panel';
+}
+```
+
+## Token Refresh
+
+The unified `refresh()` method handles both web and mobile token refresh automatically:
+
+<CodeGroup>
+```typescript Web Refresh
+// Refresh using HttpOnly cookie
+refresh(refreshToken?: string, useCookie = true): Observable<RefreshResponse> {
+  const url = `${this.baseUrl}/auth/refresh`;
+
+  if (useCookie) {
+    // WEB/API_CLIENT (cookie HttpOnly)
+    return this.http.post<ApiResponse<RefreshResponseWeb>>(
+      url, 
+      {}, 
+      { withCredentials: true }
+    ).pipe(
+      map(resp => this.unwrap<ApiResponse<RefreshResponseWeb>, RefreshResponseWeb>(resp, url)),
+      map(res => this.validateRefreshWebResponse(res, url)),
+      catchError(err => this.handleErrorAsApiError(err, url))
+    );
+  }
+}
+```
+
+```typescript Mobile Refresh
+// Refresh using refresh token in body
+refresh(refreshToken?: string, useCookie = false): Observable<RefreshResponse> {
+  const url = `${this.baseUrl}/auth/refresh`;
+
+  if (!useCookie) {
+    // MOBILE/API_CLIENT (refresh in body)
+    if (!refreshToken) {
+      return throwError(() => new Error('refreshToken requerido para refresh mobile'));
+    }
+
+    return this.http.post<ApiResponse<RefreshResponseMobile>>(
+      url, 
+      { refreshToken }
+    ).pipe(
+      map(resp => this.unwrap<ApiResponse<RefreshResponseMobile>, RefreshResponseMobile>(resp, url)),
+      map(res => this.validateRefreshMobileResponse(res, url)),
+      catchError(err => this.handleErrorAsApiError(err, url))
+    );
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+The refresh method automatically validates that `accessTokenExpiresAt` is present and that the response contains all required fields before returning.
+</Note>
+
+## Logout
+
+Logout is handled differently for each session type:
+
+<Tabs>
+  <Tab title="Web Logout">
+    ```typescript
+    logoutWeb(): Observable<void> {
+      const url = `${this.baseUrl}/auth/logout`;
+      return this.http.post<void>(url, {}, { withCredentials: true }).pipe(
+        catchError(err => this.handleErrorAsApiError(err, url))
+      );
+    }
+    ```
+
+    Web logout clears the HttpOnly cookie on the server side.
+  </Tab>
+
+  <Tab title="Mobile Logout">
+    ```typescript
+    logoutMobile(refreshToken: string): Observable<void> {
+      const url = `${this.baseUrl}/auth/logout`;
+      return this.http.post<void>(url, { refreshToken }).pipe(
+        catchError(err => this.handleErrorAsApiError(err, url))
+      );
+    }
+    ```
+
+    Mobile logout requires sending the refresh token to invalidate it on the backend.
+  </Tab>
+</Tabs>
+
+## User Profile
+
+Retrieve the authenticated driver's profile information:
+
+```typescript
+me(useCookie: boolean = true): Observable<UserProfile> {
+  const url = `${this.baseUrl}/users/profile`;
+  const options = useCookie ? { withCredentials: true } : {};
+  return this.http
+    .get<{ success: boolean; message?: string; data?: UserProfile }>(url, options)
+    .pipe(
+      map(res => {
+        if (!res || typeof res.data !== 'object' || res.data === null) {
+          throw new Error('Profile response malformed');
+        }
+        return res.data as UserProfile;
+      }),
+      catchError(err => this.handleErrorAsApiError(err, url))
+    );
+}
+```
+
+**UserProfile Interface:**
+
+```typescript
+interface UserProfile {
+  id: string | null;
+  name: string | null;
+  email: string | null;
+  phoneNumber?: string | null;
+  profilePictureUrl?: string | null;
+  createdAt?: string;
+}
+```
+
+## Error Handling
+
+The authentication service includes comprehensive error normalization:
+
+```typescript
+private handleErrorAsApiError(err: any, requestUrl?: string) {
+  return from(normalizeAnyError(err, requestUrl)).pipe(
+    mergeMap((apiErr: ApiError) => throwError(() => apiErr))
+  );
+}
+```
+
+**ApiError Structure:**
+
+```typescript
+interface ApiError {
+  status?: number;      // HTTP status code
+  message: string;      // Human-readable error message
+  code?: string;        // Application error code
+  validation?: any;     // Validation errors
+  raw?: any;           // Raw error response
+  url?: string | null; // Request URL
+}
+```
+
+<Warning>
+**Network Errors:** When a network error occurs (status 0 or ProgressEvent), the error handler returns a user-friendly message: "Network error: please check your connection."
+</Warning>
+
+## Response Validation
+
+All authentication responses are validated to ensure data integrity:
+
+<CodeGroup>
+```typescript Web Response Validation
+private validateRefreshWebResponse(
+  res: RefreshResponseWeb | null | undefined, 
+  requestUrl: string
+): RefreshResponseWeb {
+  if (!res || typeof res.accessToken !== 'string') {
+    throw new Error(`Respuesta de refresh (web) malformada: ${requestUrl}`);
+  }
+  if (typeof (res as any).accessTokenExpiresAt !== 'number') {
+    throw new Error(`Missing accessTokenExpiresAt in refresh (web): ${requestUrl}`);
+  }
+  return res;
+}
+```
+
+```typescript Mobile Response Validation
+private validateRefreshMobileResponse(
+  res: RefreshResponseMobile | null | undefined, 
+  requestUrl: string
+): RefreshResponseMobile {
+  if (!res || typeof res.accessToken !== 'string') {
+    throw new Error(`Respuesta de refresh (mobile) malformada: ${requestUrl}`);
+  }
+  if (typeof res.refreshToken !== 'string') {
+    throw new Error(`Refresh response (mobile) no contiene refreshToken: ${requestUrl}`);
+  }
+  if (typeof (res as any).accessTokenExpiresAt !== 'number') {
+    throw new Error(`Missing accessTokenExpiresAt in refresh (mobile): ${requestUrl}`);
+  }
+  return res;
+}
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="HttpOnly Cookies" icon="cookie">
+    Web sessions use HttpOnly cookies to prevent XSS attacks from accessing refresh tokens.
+  </Card>
+  
+  <Card title="Token Rotation" icon="rotate">
+    Mobile sessions implement refresh token rotation - a new refresh token is issued with each refresh request.
+  </Card>
+  
+  <Card title="Short-Lived Access Tokens" icon="clock">
+    Access tokens expire quickly (typically 15-30 minutes) to minimize the impact of token theft.
+  </Card>
+  
+  <Card title="Error Normalization" icon="shield-check">
+    All errors are normalized to prevent sensitive information leakage in error messages.
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+- [Real-Time Updates](/features/real-time-updates) - WebSocket authentication
+- [Driver Profile](/features/driver-profile) - Managing driver information
+- [Trip Management](/features/trip-management) - Authenticated trip operations

@@ -1,80 +1,207 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart Guide
+description: Get started with Rodando Driver in minutes - from login to accepting your first trip
+icon: rocket
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This quickstart guide will walk you through the essential steps to get started as a driver on the Rodando platform. In just a few minutes, you'll learn how to log in, go online, and accept your first trip.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Make sure you have the Rodando Driver app installed on your device. If not, check our [Installation Guide](/installation) first.
 </Note>
+
+## Your First Journey
+
+<Steps>
+  <Step title="Log In to Your Account">
+    Open the Rodando Driver app and enter your credentials:
+    
+    - **Email or Phone**: Your registered email or phone number
+    - **Password**: Your secure password
+    
+    <Tabs>
+      <Tab title="Email Login">
+        ```typescript
+        {
+          email: "driver@example.com",
+          password: "your-secure-password",
+          appAudience: "DRIVER_APP",
+          userType: "DRIVER"
+        }
+        ```
+      </Tab>
+      <Tab title="Phone Login">
+        ```typescript
+        {
+          phone: "+53-5-1234567",
+          password: "your-secure-password",
+          appAudience: "DRIVER_APP",
+          userType: "DRIVER"
+        }
+        ```
+      </Tab>
+    </Tabs>
+    
+    After successful login, you'll receive an access token that keeps you authenticated.
+  </Step>
+
+  <Step title="Go Online">
+    Once logged in, toggle your availability status to go online:
+    
+    1. Tap the **Go Online** button on the home screen
+    2. Ensure your location services are enabled
+    3. Select your active vehicle (if you have multiple registered)
+    
+    When online, you'll:
+    - Appear on the driver demand map
+    - Start receiving trip offers in your area
+    - Send location pings every 10 seconds
+    
+    <Tip>
+    Make sure you're in an area with good cellular connection for optimal trip matching.
+    </Tip>
+  </Step>
+
+  <Step title="Receive Your First Trip Offer">
+    When a passenger requests a ride nearby, you'll receive a trip offer notification showing:
+    
+    - **Pickup Location**: Where to pick up the passenger
+    - **Destination**: Where they're going
+    - **Distance & Duration**: Estimated trip details
+    - **Fare**: Expected earnings for the trip
+    - **Payment Method**: Cash or digital payment
+    
+    You have **20 seconds** to accept or decline the offer before it expires.
+  </Step>
+
+  <Step title="Accept the Trip">
+    To accept the trip, tap the **Accept** button in the offer modal.
+    
+    The app will:
+    - Confirm your acceptance with the server
+    - Navigate you to the active trip screen
+    - Show route guidance to the pickup location
+    - Display passenger information (name, phone, photo)
+    
+    <Note>
+    Once accepted, the passenger is notified and expects you to arrive at the pickup location.
+    </Note>
+  </Step>
+
+  <Step title="Navigate to Pickup">
+    The app provides turn-by-turn navigation to the pickup point:
+    
+    - Follow the route shown on the map
+    - The passenger can track your real-time location
+    - Tap **Call Passenger** if you need to contact them
+    
+    When you arrive at the pickup location, tap **I've Arrived**.
+  </Step>
+
+  <Step title="Pick Up Passenger">
+    After marking arrival:
+    
+    1. Wait for the passenger to board your vehicle
+    2. Verify their identity matches the app
+    3. Confirm the destination with them
+    4. Tap **Start Trip** once they're safely in your vehicle
+    
+    <Warning>
+    Waiting time after arrival is tracked and may result in additional fees if excessive.
+    </Warning>
+  </Step>
+
+  <Step title="Complete the Trip">
+    Drive to the destination following the in-app navigation:
+    
+    - The app tracks your route in real-time
+    - Updates are sent to the passenger
+    - Actual distance and duration are recorded
+    
+    When you reach the destination:
+    
+    1. Tap **Complete Trip**
+    2. Review the fare breakdown:
+       - Base fare
+       - Any waiting charges
+       - Total amount
+    3. Confirm payment collection (cash) or digital payment
+    4. Tap **Confirm** to finalize
+    
+    The trip is now complete and earnings are added to your wallet!
+  </Step>
+</Steps>
+
+## Key Concepts
+
+<CardGroup cols={2}>
+  <Card title="Trip Lifecycle" icon="route">
+    Trips flow through: Assigned → Arriving → In Progress → Completed
+  </Card>
+  <Card title="Real-time Updates" icon="signal">
+    WebSocket connections keep you synced with trip status changes
+  </Card>
+  <Card title="Fare Calculation" icon="calculator">
+    Base fare + waiting fees + distance/duration adjustments
+  </Card>
+  <Card title="Payment Modes" icon="credit-card">
+    Support for cash and digital payments
+  </Card>
+</CardGroup>
+
+## What's Next?
+
+<CardGroup cols={3}>
+  <Card title="Trip Management" icon="car" href="/features/trip-management">
+    Learn about the complete trip lifecycle
+  </Card>
+  <Card title="Earnings Tracking" icon="dollar-sign" href="/features/earnings-tracking">
+    Understand how your earnings are calculated
+  </Card>
+  <Card title="Managing Availability" icon="toggle-on" href="/guides/managing-availability">
+    Control when you receive trip offers
+  </Card>
+  <Card title="Vehicle Setup" icon="car" href="/guides/vehicle-setup">
+    Register and manage your vehicles
+  </Card>
+  <Card title="Dark Mode" icon="moon" href="/guides/dark-mode">
+    Enable dark mode for night driving
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/services/trip-api-service">
+    Explore the technical documentation
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="I'm not receiving trip offers">
+Ensure you are:
+- Online with a green status indicator
+- In an area with active demand
+- Have a vehicle selected and verified
+- Have good GPS signal and cellular connection
+</Accordion>
+
+<Accordion title="Trip offer expired before I could respond">
+Trip offers expire after 20 seconds. Make sure you:
+- Have notifications enabled
+- Keep the app in the foreground when expecting trips
+- Have a stable internet connection for instant notifications
+</Accordion>
+
+<Accordion title="Can't start the trip">
+Make sure you've:
+- Marked arrival at the pickup location first
+- Waited for the passenger to board
+- Have a stable internet connection for the status update
+</Accordion>
+
+## Need Help?
+
+- Check the [User Guides](/guides/accepting-trips) for detailed workflows
+- Review [Common Issues](/features/authentication) and solutions
+- Contact support through the app's support section
+
+Happy driving! 🚗

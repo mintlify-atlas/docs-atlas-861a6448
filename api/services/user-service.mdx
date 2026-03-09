@@ -1,0 +1,358 @@
+---
+title: UserService
+description: API service for user profile management and updates
+icon: user
+---
+
+## Overview
+
+The `UserService` provides methods for retrieving and updating user profile information, including personal details, contact information, and verification status.
+
+**Location**: `src/app/core/services/http/user.service.ts`
+
+## Public Methods
+
+### getProfile()
+
+Retrieves the authenticated user's complete profile.
+
+<ParamField path="useCookie" type="boolean">
+  Use HTTP-only cookie for authentication (default: true)
+</ParamField>
+
+**Returns**: `Observable<UserProfile>`
+
+<ResponseField name="id" type="string">
+  User's unique identifier
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  User's phone number
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="photoUrl" type="string">
+  Profile photo URL
+</ResponseField>
+
+<ResponseField name="emailVerified" type="boolean">
+  Whether email is verified
+</ResponseField>
+
+<ResponseField name="phoneVerified" type="boolean">
+  Whether phone is verified
+</ResponseField>
+
+```typescript
+this.userService.getProfile(true).subscribe({
+  next: (profile) => {
+    console.log('User profile:', profile);
+    this.displayName = `${profile.firstName} ${profile.lastName}`;
+    this.email = profile.email;
+  }
+});
+```
+
+### updateProfile()
+
+Updates the user's profile information.
+
+<ParamField path="userId" type="string" required>
+  The user's unique identifier
+</ParamField>
+
+<ParamField path="payload" type="UpdateUserPayload" required>
+  Profile update data (all fields optional)
+  
+  <Expandable title="UpdateUserPayload Properties">
+    <ParamField path="firstName" type="string">
+      Updated first name
+    </ParamField>
+    <ParamField path="lastName" type="string">
+      Updated last name
+    </ParamField>
+    <ParamField path="email" type="string">
+      Updated email address (requires re-verification)
+    </ParamField>
+    <ParamField path="phone" type="string">
+      Updated phone number (requires re-verification)
+    </ParamField>
+    <ParamField path="photoUrl" type="string">
+      Updated profile photo URL
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns**: `Observable<UserProfile>`
+
+```typescript
+const updates: UpdateUserPayload = {
+  firstName: 'Juan',
+  lastName: 'Rodriguez',
+  phone: '+53-5-1234567'
+};
+
+this.userService.updateProfile(userId, updates).subscribe({
+  next: (updatedProfile) => {
+    console.log('Profile updated:', updatedProfile);
+    if (updates.phone && !updatedProfile.phoneVerified) {
+      this.showMessage('Please verify your new phone number');
+    }
+  }
+});
+```
+
+### uploadProfilePhoto()
+
+Uploads a new profile photo.
+
+<ParamField path="userId" type="string" required>
+  The user's unique identifier
+</ParamField>
+
+<ParamField path="file" type="File" required>
+  Image file to upload
+</ParamField>
+
+**Returns**: `Observable<{ photoUrl: string }>`
+
+```typescript
+onFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      this.showError('Please select an image file');
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      this.showError('Image must be smaller than 5MB');
+      return;
+    }
+    
+    this.userService.uploadProfilePhoto(this.userId, file).subscribe({
+      next: (response) => {
+        this.photoUrl = response.photoUrl;
+        this.showMessage('Profile photo updated');
+      },
+      error: (error) => {
+        this.showError('Failed to upload photo');
+      }
+    });
+  }
+}
+```
+
+### verifyEmail()
+
+Initiates email verification process.
+
+<ParamField path="email" type="string" required>
+  Email address to verify
+</ParamField>
+
+**Returns**: `Observable<void>`
+
+```typescript
+this.userService.verifyEmail(this.user.email).subscribe({
+  next: () => {
+    this.showMessage('Verification email sent. Please check your inbox.');
+  }
+});
+```
+
+### verifyPhone()
+
+Initiates phone verification process.
+
+<ParamField path="phone" type="string" required>
+  Phone number to verify
+</ParamField>
+
+**Returns**: `Observable<void>`
+
+```typescript
+this.userService.verifyPhone(this.user.phone).subscribe({
+  next: () => {
+    this.showMessage('Verification code sent via SMS');
+    this.showCodeInput = true;
+  }
+});
+```
+
+### confirmPhoneVerification()
+
+Confirms phone verification with the code sent via SMS.
+
+<ParamField path="phone" type="string" required>
+  Phone number being verified
+</ParamField>
+
+<ParamField path="code" type="string" required>
+  6-digit verification code
+</ParamField>
+
+**Returns**: `Observable<UserProfile>`
+
+```typescript
+this.userService.confirmPhoneVerification(this.user.phone, this.verificationCode).subscribe({
+  next: (profile) => {
+    if (profile.phoneVerified) {
+      this.showMessage('Phone verified successfully!');
+    }
+  },
+  error: (error) => {
+    if (error.code === 'INVALID_CODE') {
+      this.showError('Invalid verification code');
+    } else if (error.code === 'CODE_EXPIRED') {
+      this.showError('Verification code expired. Request a new one.');
+    }
+  }
+});
+```
+
+## Profile Management Flow
+
+<Steps>
+  <Step title="Load Profile">
+    Fetch the user's current profile data on component initialization
+  </Step>
+  <Step title="Display Form">
+    Pre-fill form fields with existing profile data
+  </Step>
+  <Step title="Handle Changes">
+    Validate inputs as user makes changes
+  </Step>
+  <Step title="Submit Updates">
+    Send only changed fields to minimize data transfer
+  </Step>
+  <Step title="Handle Verification">
+    If email/phone changed, prompt for verification
+  </Step>
+  <Step title="Refresh Profile">
+    Reload profile data to reflect server-side changes
+  </Step>
+</Steps>
+
+## Complete Profile Component Example
+
+```typescript
+import { Component, inject, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UserService } from '@/app/core/services/http/user.service';
+import { UserProfile } from '@/app/core/models/user/user.response';
+
+@Component({
+  selector: 'app-profile-edit',
+  templateUrl: './profile-edit.component.html',
+})
+export class ProfileEditComponent implements OnInit {
+  private userService = inject(UserService);
+  private fb = inject(FormBuilder);
+  
+  profileForm: FormGroup;
+  profile?: UserProfile;
+  loading = false;
+  
+  ngOnInit() {
+    this.profileForm = this.fb.group({
+      firstName: ['', Validators.required],
+      lastName: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]],
+      phone: ['', Validators.required]
+    });
+    
+    this.loadProfile();
+  }
+  
+  loadProfile() {
+    this.loading = true;
+    this.userService.getProfile().subscribe({
+      next: (profile) => {
+        this.profile = profile;
+        this.profileForm.patchValue({
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+          phone: profile.phone
+        });
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Failed to load profile:', error);
+        this.loading = false;
+      }
+    });
+  }
+  
+  saveProfile() {
+    if (this.profileForm.invalid || !this.profile) {
+      return;
+    }
+    
+    const updates = this.profileForm.value;
+    this.loading = true;
+    
+    this.userService.updateProfile(this.profile.id, updates).subscribe({
+      next: (updatedProfile) => {
+        this.profile = updatedProfile;
+        this.loading = false;
+        
+        // Check if verification needed
+        if (updates.email !== this.profile.email && !updatedProfile.emailVerified) {
+          this.promptEmailVerification();
+        }
+        if (updates.phone !== this.profile.phone && !updatedProfile.phoneVerified) {
+          this.promptPhoneVerification();
+        }
+      },
+      error: (error) => {
+        console.error('Failed to update profile:', error);
+        this.loading = false;
+      }
+    });
+  }
+  
+  promptEmailVerification() {
+    // Show verification UI
+  }
+  
+  promptPhoneVerification() {
+    // Show verification UI
+  }
+}
+```
+
+## Best Practices
+
+<Tip>
+**Optimistic updates**: Update the UI immediately while the API call is in progress for better perceived performance.
+</Tip>
+
+<Warning>
+**Verification required**: Always prompt users to verify their email/phone after changing them.
+</Warning>
+
+<Note>
+**Profile photos**: Resize images on the client side before uploading to reduce bandwidth usage.
+</Note>
+
+## Related Documentation
+
+- [Driver Profile Feature](/features/driver-profile)
+- [User Models](/api/models/user-models)
+- [Authentication](/features/authentication)

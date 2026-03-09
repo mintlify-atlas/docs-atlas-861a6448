@@ -1,0 +1,458 @@
+---
+title: "Trip Models"
+description: "Data models for trip management, assignments, and fare calculations in the Rodando Driver application"
+---
+
+## Overview
+
+The trip models handle trip lifecycle, driver assignments, fare calculations, and location tracking for rides in the Rodando platform.
+
+## Core Trip Models
+
+### TripDto
+
+Complete trip object with all details including status, location, and fare information.
+
+**Source:** `src/app/features/trip/interfaces/trip.interface.ts:16`
+
+```typescript
+interface TripDto {
+  id: string;
+  currentStatus: 'pending' | 'assigning' | 'accepted' | 'arriving' | 'in_progress' | 'completed' | 'cancelled' | 'no_drivers_found';
+  pickupAddress?: string | null;
+  pickupPoint?: { lat: number; lng: number } | null;
+  stops?: TripStopDto[];
+  fareSnapshot?: FareSnapshotDto | null;
+  requestedVehicleCategory?: { id: string; name?: string } | null;
+  requestedServiceClass?: { id: string; name?: string } | null;
+  fareEstimatedTotal?: number | null;
+  fareFinalCurrency?: string | null;
+  fareDistanceKm?: number | null;
+  fareDurationMin?: number | null;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the trip (UUID).
+</ResponseField>
+
+<ResponseField name="currentStatus" type="string" required>
+  Current status of the trip in its lifecycle.
+  
+  **Possible values:**
+  - `pending` - Trip created, awaiting assignment
+  - `assigning` - System is finding a driver
+  - `accepted` - Driver accepted the assignment
+  - `arriving` - Driver is en route to pickup location
+  - `in_progress` - Trip is in progress
+  - `completed` - Trip finished successfully
+  - `cancelled` - Trip was cancelled
+  - `no_drivers_found` - No available drivers found
+</ResponseField>
+
+<ResponseField name="pickupAddress" type="string" optional>
+  Human-readable pickup address (e.g., "123 Main St, New York, NY").
+</ResponseField>
+
+<ResponseField name="pickupPoint" type="object" optional>
+  Geographic coordinates of the pickup location.
+  
+  <Expandable title="Coordinates">
+    <ResponseField name="lat" type="number" required>
+      Latitude coordinate
+    </ResponseField>
+    <ResponseField name="lng" type="number" required>
+      Longitude coordinate
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="stops" type="TripStopDto[]" optional>
+  Array of intermediate stops and final destination.
+  
+  <Expandable title="TripStopDto properties">
+    <ResponseField name="seq" type="number" required>
+      Sequence number for the stop (0-based index)
+    </ResponseField>
+    <ResponseField name="point" type="object" optional>
+      Geographic coordinates of the stop
+      
+      <Expandable title="Coordinates">
+        <ResponseField name="lat" type="number" required>
+          Latitude coordinate
+        </ResponseField>
+        <ResponseField name="lng" type="number" required>
+          Longitude coordinate
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="address" type="string" optional>
+      Human-readable address for the stop
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="fareSnapshot" type="FareSnapshotDto" optional>
+  Snapshot of fare calculation at trip creation time.
+  
+  <Expandable title="FareSnapshotDto properties">
+    <ResponseField name="currency" type="string" required>
+      Currency code (e.g., "USD", "EUR")
+    </ResponseField>
+    <ResponseField name="surgeMultiplier" type="number" optional>
+      Surge pricing multiplier (e.g., 1.5 for 1.5x pricing)
+    </ResponseField>
+    <ResponseField name="breakdown" type="any" optional>
+      Detailed fare breakdown object
+    </ResponseField>
+    <ResponseField name="distanceKmEst" type="number" optional>
+      Estimated distance in kilometers
+    </ResponseField>
+    <ResponseField name="durationMinEst" type="number" optional>
+      Estimated duration in minutes
+    </ResponseField>
+    <ResponseField name="estimatedTotal" type="number" optional>
+      Estimated total fare amount
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="requestedVehicleCategory" type="object" optional>
+  The type of vehicle requested for this trip.
+  
+  <Expandable title="Vehicle category">
+    <ResponseField name="id" type="string" required>
+      Vehicle category ID
+    </ResponseField>
+    <ResponseField name="name" type="string" optional>
+      Vehicle category name (e.g., "Sedan", "SUV")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="requestedServiceClass" type="object" optional>
+  The service level requested for this trip.
+  
+  <Expandable title="Service class">
+    <ResponseField name="id" type="string" required>
+      Service class ID
+    </ResponseField>
+    <ResponseField name="name" type="string" optional>
+      Service class name (e.g., "Economy", "Premium")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="fareEstimatedTotal" type="number" optional>
+  Estimated total fare for the trip.
+</ResponseField>
+
+<ResponseField name="fareFinalCurrency" type="string" optional>
+  Currency for the final fare (e.g., "USD").
+</ResponseField>
+
+<ResponseField name="fareDistanceKm" type="number" optional>
+  Distance used for fare calculation in kilometers.
+</ResponseField>
+
+<ResponseField name="fareDurationMin" type="number" optional>
+  Duration used for fare calculation in minutes.
+</ResponseField>
+
+<CodeGroup>
+```json Example Trip
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "currentStatus": "accepted",
+  "pickupAddress": "123 Main Street, New York, NY 10001",
+  "pickupPoint": {
+    "lat": 40.7128,
+    "lng": -74.0060
+  },
+  "stops": [
+    {
+      "seq": 0,
+      "point": {
+        "lat": 40.7589,
+        "lng": -73.9851
+      },
+      "address": "Times Square, New York, NY"
+    }
+  ],
+  "fareSnapshot": {
+    "currency": "USD",
+    "surgeMultiplier": 1.2,
+    "distanceKmEst": 5.3,
+    "durationMinEst": 18,
+    "estimatedTotal": 24.50
+  },
+  "requestedVehicleCategory": {
+    "id": "cat-sedan",
+    "name": "Sedan"
+  },
+  "requestedServiceClass": {
+    "id": "class-economy",
+    "name": "Economy"
+  },
+  "fareEstimatedTotal": 24.50,
+  "fareFinalCurrency": "USD",
+  "fareDistanceKm": 5.3,
+  "fareDurationMin": 18
+}
+```
+</CodeGroup>
+
+---
+
+### TripStopDto
+
+Represents a stop (intermediate or final destination) in a trip.
+
+**Source:** `src/app/features/trip/interfaces/trip.interface.ts:1`
+
+```typescript
+interface TripStopDto {
+  seq: number;
+  point: { lat: number; lng: number } | null;
+  address?: string | null;
+}
+```
+
+<ResponseField name="seq" type="number" required>
+  Sequence number for the stop (0-based). Determines the order in which stops are visited.
+</ResponseField>
+
+<ResponseField name="point" type="object" optional>
+  Geographic coordinates of the stop location.
+  
+  <Expandable title="Point coordinates">
+    <ResponseField name="lat" type="number" required>
+      Latitude coordinate
+    </ResponseField>
+    <ResponseField name="lng" type="number" required>
+      Longitude coordinate
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="address" type="string" optional>
+  Human-readable address for the stop.
+</ResponseField>
+
+---
+
+### FareSnapshotDto
+
+Snapshot of fare calculation parameters at the time of trip creation.
+
+**Source:** `src/app/features/trip/interfaces/trip.interface.ts:7`
+
+```typescript
+interface FareSnapshotDto {
+  currency: string;
+  surgeMultiplier?: number | null;
+  breakdown?: any;
+  distanceKmEst?: number | null;
+  durationMinEst?: number | null;
+  estimatedTotal?: number | null;
+}
+```
+
+<ResponseField name="currency" type="string" required>
+  ISO 4217 currency code (e.g., "USD", "EUR", "GBP").
+</ResponseField>
+
+<ResponseField name="surgeMultiplier" type="number" optional>
+  Surge pricing multiplier applied to base fare. A value of 1.5 means 1.5x the base price.
+</ResponseField>
+
+<ResponseField name="breakdown" type="any" optional>
+  Detailed breakdown of fare components. Structure varies based on implementation.
+</ResponseField>
+
+<ResponseField name="distanceKmEst" type="number" optional>
+  Estimated trip distance in kilometers.
+</ResponseField>
+
+<ResponseField name="durationMinEst" type="number" optional>
+  Estimated trip duration in minutes.
+</ResponseField>
+
+<ResponseField name="estimatedTotal" type="number" optional>
+  Total estimated fare amount in the specified currency.
+</ResponseField>
+
+<CodeGroup>
+```json Example Fare Snapshot
+{
+  "currency": "USD",
+  "surgeMultiplier": 1.3,
+  "breakdown": {
+    "baseFare": 5.00,
+    "distanceFare": 12.50,
+    "timeFare": 3.00,
+    "surgeFee": 6.15,
+    "serviceFee": 2.50
+  },
+  "distanceKmEst": 8.2,
+  "durationMinEst": 22,
+  "estimatedTotal": 29.15
+}
+```
+</CodeGroup>
+
+---
+
+## Driver Action Models
+
+### DriverActionPayload
+
+Payload for driver-initiated trip actions (arriving, starting trip).
+
+**Source:** `src/app/features/trip/interfaces/trip.interface.ts:31`
+
+```typescript
+interface DriverActionPayload {
+  driverId: string;
+}
+```
+
+<ResponseField name="driverId" type="string" required>
+  Unique identifier of the driver performing the action (UUID).
+</ResponseField>
+
+<CodeGroup>
+```json Example
+{
+  "driverId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+</CodeGroup>
+
+---
+
+### CompleteTripPayload
+
+Payload for completing a trip with final details and charges.
+
+**Source:** `src/app/features/trip/interfaces/trip.interface.ts:35`
+
+```typescript
+interface CompleteTripPayload {
+  driverId: string;
+  actualDistanceKm?: number | null;
+  actualDurationMin?: number | null;
+  extraFees?: number | null;
+  waitingTimeMinutes?: number | null;
+  waitingReason?: string | null;
+}
+```
+
+<ResponseField name="driverId" type="string" required>
+  Unique identifier of the driver completing the trip (UUID).
+</ResponseField>
+
+<ResponseField name="actualDistanceKm" type="number" optional>
+  Actual distance traveled in kilometers (from odometer or GPS tracking).
+</ResponseField>
+
+<ResponseField name="actualDurationMin" type="number" optional>
+  Actual trip duration in minutes.
+</ResponseField>
+
+<ResponseField name="extraFees" type="number" optional>
+  Additional fees charged (e.g., tolls, parking, special handling).
+</ResponseField>
+
+<ResponseField name="waitingTimeMinutes" type="number" optional>
+  Time driver waited for passenger in minutes.
+</ResponseField>
+
+<ResponseField name="waitingReason" type="string" optional>
+  Reason for waiting time (e.g., "Passenger delayed", "Loading luggage").
+</ResponseField>
+
+<CodeGroup>
+```json Example Complete Trip
+{
+  "driverId": "550e8400-e29b-41d4-a716-446655440000",
+  "actualDistanceKm": 8.7,
+  "actualDurationMin": 25,
+  "extraFees": 3.50,
+  "waitingTimeMinutes": 5,
+  "waitingReason": "Passenger loading luggage"
+}
+```
+</CodeGroup>
+
+---
+
+## Assignment Models
+
+### TripAssignedVm
+
+View model for trip assignment notifications displayed to drivers.
+
+**Source:** `src/app/features/trip/interfaces/trip-assigned-modal.interface.ts:1`
+
+```typescript
+type TripAssignedVm = {
+  tripId: string;
+  pickupLabel?: string | null;
+  destinationLabel?: string | null;
+  distanceKm?: number | null;
+  durationMin?: number | null;
+  totalEstimated?: number | null;
+  currency?: string | null;
+};
+```
+
+<ResponseField name="tripId" type="string" required>
+  Unique identifier of the assigned trip (UUID).
+</ResponseField>
+
+<ResponseField name="pickupLabel" type="string" optional>
+  Short label or address for the pickup location.
+</ResponseField>
+
+<ResponseField name="destinationLabel" type="string" optional>
+  Short label or address for the destination.
+</ResponseField>
+
+<ResponseField name="distanceKm" type="number" optional>
+  Estimated distance to complete the trip in kilometers.
+</ResponseField>
+
+<ResponseField name="durationMin" type="number" optional>
+  Estimated duration to complete the trip in minutes.
+</ResponseField>
+
+<ResponseField name="totalEstimated" type="number" optional>
+  Estimated total fare for the trip.
+</ResponseField>
+
+<ResponseField name="currency" type="string" optional>
+  Currency code for the fare (e.g., "USD").
+</ResponseField>
+
+<CodeGroup>
+```json Example Assignment
+{
+  "tripId": "550e8400-e29b-41d4-a716-446655440000",
+  "pickupLabel": "123 Main St",
+  "destinationLabel": "Times Square",
+  "distanceKm": 5.3,
+  "durationMin": 18,
+  "totalEstimated": 24.50,
+  "currency": "USD"
+}
+```
+</CodeGroup>
+
+---
+
+## Related Models
+
+See also:
+- [User Models](/api/models/user-models) - User profiles and driver information (includes driver availability)
+- [Auth Models](/api/models/auth-models) - Authentication and session data

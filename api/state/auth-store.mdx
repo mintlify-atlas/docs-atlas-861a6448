@@ -1,0 +1,610 @@
+---
+title: 'AuthStore'
+description: 'Signal-based authentication state management with token lifecycle tracking'
+---
+
+## Overview
+
+The `AuthStore` manages authentication state using Angular signals. It tracks access and refresh tokens, user profile data, token expiration times, and provides computed signals for token validation and authentication status.
+
+## State Interface
+
+### AuthState
+
+<ResponseField name="accessToken" type="string | null">
+  JWT access token for API authentication
+</ResponseField>
+
+<ResponseField name="refreshTokenInMemory" type="string | null">
+  Refresh token stored in memory (mobile platforms may persist to secure storage via facade)
+</ResponseField>
+
+<ResponseField name="user" type="UserProfile | null">
+  Complete user profile object
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  Whether an auth operation is in progress
+</ResponseField>
+
+<ResponseField name="error" type="any | null">
+  Error object from failed auth operations
+</ResponseField>
+
+<ResponseField name="sessionType" type="SessionType | null">
+  Type of session (e.g., 'driver', 'passenger', 'admin')
+</ResponseField>
+
+<ResponseField name="accessTokenExpiresAt" type="number | null">
+  Unix timestamp (milliseconds) when access token expires
+</ResponseField>
+
+<ResponseField name="refreshTokenExpiresAt" type="number | null">
+  Unix timestamp (milliseconds) when refresh token expires
+</ResponseField>
+
+<ResponseField name="sid" type="string | null">
+  Session ID (JWT `jti` claim)
+</ResponseField>
+
+<ResponseField name="refreshInProgress" type="boolean">
+  Utility flag indicating token refresh is currently happening
+</ResponseField>
+
+## Computed Signals
+
+### accessToken
+
+```typescript
+readonly accessToken = computed(() => this._state().accessToken)
+```
+
+Returns the current access token.
+
+### refreshTokenInMemory
+
+```typescript
+readonly refreshTokenInMemory = computed(() => this._state().refreshTokenInMemory)
+```
+
+Returns the refresh token from memory.
+
+### user
+
+```typescript
+readonly user = computed(() => this._state().user)
+```
+
+Returns the current user profile.
+
+**Usage:**
+```typescript
+const userId = authStore.user()?.id;
+const userName = authStore.user()?.name;
+```
+
+### loading
+
+```typescript
+readonly loading = computed(() => this._state().loading)
+```
+
+Returns loading state.
+
+### error
+
+```typescript
+readonly error = computed(() => this._state().error)
+```
+
+Returns current error object.
+
+### accessTokenExpiresAt
+
+```typescript
+readonly accessTokenExpiresAt = computed(() => this._state().accessTokenExpiresAt)
+```
+
+Returns access token expiration timestamp (milliseconds).
+
+### refreshTokenExpiresAt
+
+```typescript
+readonly refreshTokenExpiresAt = computed(() => this._state().refreshTokenExpiresAt)
+```
+
+Returns refresh token expiration timestamp.
+
+### sid
+
+```typescript
+readonly sid = computed(() => this._state().sid)
+```
+
+Returns session ID.
+
+### sessionType
+
+```typescript
+readonly sessionType = computed(() => this._state().sessionType)
+```
+
+Returns session type.
+
+### refreshInProgress
+
+```typescript
+readonly refreshInProgress = computed(() => !!this._state().refreshInProgress)
+```
+
+Returns true if token refresh is in progress.
+
+### accessTokenExpiresIn
+
+```typescript
+readonly accessTokenExpiresIn = computed(() => {
+  const at = this._state().accessTokenExpiresAt;
+  if (!at) return null;
+  return Math.max(0, at - Date.now());
+})
+```
+
+Returns milliseconds until access token expires, or `null` if no expiration set.
+
+**Usage:**
+```typescript
+const msRemaining = authStore.accessTokenExpiresIn();
+if (msRemaining && msRemaining < 5 * 60 * 1000) {
+  // Less than 5 minutes remaining, refresh token
+  await authFacade.refreshToken();
+}
+```
+
+### isAccessTokenValid
+
+```typescript
+readonly isAccessTokenValid = computed(() => {
+  const token = this._state().accessToken;
+  const exp = this._state().accessTokenExpiresAt ?? 0;
+  return !!token && exp > Date.now();
+})
+```
+
+Returns `true` if access token exists and is not expired.
+
+### isAuthenticated
+
+```typescript
+readonly isAuthenticated = computed(() => {
+  const token = this._state().accessToken;
+  const user = this._state().user;
+  const exp = this._state().accessTokenExpiresAt ?? 0;
+  return !!token && !!user && exp > Date.now();
+})
+```
+
+Returns `true` if user has valid token AND user profile is loaded.
+
+**Usage in route guards:**
+```typescript
+import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthStore } from '@/app/store/auth/auth.store';
+
+export const authGuard = () => {
+  const authStore = inject(AuthStore);
+  const router = inject(Router);
+  
+  if (authStore.isAuthenticated()) {
+    return true;
+  }
+  
+  return router.parseUrl('/login');
+};
+```
+
+## State Mutation Methods
+
+### setAccessToken(token)
+
+<ParamField path="token" type="string | null" required>
+  JWT access token or null to clear
+</ParamField>
+
+```typescript
+setAccessToken(token: string | null): void
+```
+
+Sets the access token.
+
+### setRefreshTokenInMemory(token, persist)
+
+<ParamField path="token" type="string | null" required>
+  Refresh token or null to clear
+</ParamField>
+
+<ParamField path="persist" type="boolean">
+  Hint to facade that token should be persisted (not handled by store)
+</ParamField>
+
+```typescript
+setRefreshTokenInMemory(token: string | null, persist?: boolean): void
+```
+
+Sets the refresh token in memory. For secure storage persistence, implement in facade.
+
+### setUser(user)
+
+<ParamField path="user" type="UserProfile | null" required>
+  User profile object or null to clear
+</ParamField>
+
+```typescript
+setUser(user: UserProfile | null): void
+```
+
+Sets the user profile.
+
+### setLoading(loading)
+
+<ParamField path="loading" type="boolean" required>
+  Loading state
+</ParamField>
+
+```typescript
+setLoading(loading: boolean): void
+```
+
+Sets loading state.
+
+### setError(error)
+
+<ParamField path="error" type="any | null" required>
+  Error object or null to clear
+</ParamField>
+
+```typescript
+setError(error: any | null): void
+```
+
+Sets error state.
+
+### setSessionType(type)
+
+<ParamField path="type" type="SessionType | null" required>
+  Session type or null
+</ParamField>
+
+```typescript
+setSessionType(type: SessionType | null): void
+```
+
+Sets the session type.
+
+### setSid(sid)
+
+<ParamField path="sid" type="string | null" required>
+  Session ID or null
+</ParamField>
+
+```typescript
+setSid(sid: string | null): void
+```
+
+Sets the session ID.
+
+### setRefreshInProgress(flag)
+
+<ParamField path="flag" type="boolean" required>
+  Whether refresh is in progress
+</ParamField>
+
+```typescript
+setRefreshInProgress(flag: boolean): void
+```
+
+Sets the refresh in progress flag.
+
+### setAuth(payload)
+
+<ParamField path="payload.accessToken" type="string | null">
+  Access token to set
+</ParamField>
+
+<ParamField path="payload.accessTokenExpiresAt" type="number | null">
+  Access token expiration timestamp
+</ParamField>
+
+<ParamField path="payload.refreshTokenInMemory" type="string | null">
+  Refresh token to set
+</ParamField>
+
+<ParamField path="payload.refreshTokenExpiresAt" type="number | null">
+  Refresh token expiration timestamp
+</ParamField>
+
+<ParamField path="payload.user" type="UserProfile | null">
+  User profile to set
+</ParamField>
+
+<ParamField path="payload.sessionType" type="SessionType | null">
+  Session type to set
+</ParamField>
+
+<ParamField path="payload.sid" type="string | null">
+  Session ID to set
+</ParamField>
+
+```typescript
+setAuth(payload: {
+  accessToken?: string | null;
+  accessTokenExpiresAt?: number | null;
+  refreshTokenInMemory?: string | null;
+  refreshTokenExpiresAt?: number | null;
+  user?: UserProfile | null;
+  sessionType?: SessionType | null;
+  sid?: string | null;
+}): void
+```
+
+Atomic setter for multiple auth fields. Commonly used after login or token refresh.
+
+**Example:**
+```typescript
+// After successful login
+const response = await authApi.login(credentials);
+
+authStore.setAuth({
+  accessToken: response.accessToken,
+  accessTokenExpiresAt: Date.now() + response.expiresIn * 1000,
+  refreshTokenInMemory: response.refreshToken,
+  user: response.user,
+  sessionType: 'driver',
+  sid: response.sessionId
+});
+```
+
+### getSnapshot()
+
+```typescript
+getSnapshot(): AuthState
+```
+
+Returns a snapshot of the current state object.
+
+**Usage:**
+```typescript
+const snapshot = authStore.getSnapshot();
+console.log('Current user:', snapshot.user);
+console.log('Token expires at:', new Date(snapshot.accessTokenExpiresAt));
+```
+
+### clear()
+
+```typescript
+clear(): void
+```
+
+Resets all state to initial values (logs out user).
+
+**Example:**
+```typescript
+// Logout flow
+await authApi.logout();
+authStore.clear();
+await router.navigate(['/login']);
+```
+
+## Usage Examples
+
+### Login Flow
+
+```typescript
+import { Component, inject } from '@angular/core';
+import { AuthStore } from '@/app/store/auth/auth.store';
+import { AuthApiService } from '@/app/core/services/http/auth-api.service';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-login',
+  template: `
+    <form (submit)="onLogin()">
+      <input [(ngModel)]="phone" name="phone" placeholder="Teléfono" />
+      <input [(ngModel)]="password" name="password" type="password" />
+      
+      <button type="submit" [disabled]="authStore.loading()">
+        {{ authStore.loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}
+      </button>
+      
+      @if (authStore.error(); as error) {
+        <p class="error">{{ error.message }}</p>
+      }
+    </form>
+  `
+})
+export class LoginComponent {
+  authStore = inject(AuthStore);
+  authApi = inject(AuthApiService);
+  router = inject(Router);
+  
+  phone = '';
+  password = '';
+  
+  async onLogin() {
+    this.authStore.setLoading(true);
+    this.authStore.setError(null);
+    
+    try {
+      const response = await this.authApi.login({
+        phone: this.phone,
+        password: this.password,
+        role: 'driver'
+      }).toPromise();
+      
+      // Decode JWT to get expiration (or use response.expiresIn)
+      const expiresAt = Date.now() + (response.expiresIn * 1000);
+      
+      this.authStore.setAuth({
+        accessToken: response.accessToken,
+        accessTokenExpiresAt: expiresAt,
+        refreshTokenInMemory: response.refreshToken,
+        user: response.user,
+        sessionType: 'driver',
+        sid: response.sessionId
+      });
+      
+      this.authStore.setLoading(false);
+      await this.router.navigate(['/dashboard']);
+    } catch (error) {
+      this.authStore.setError(error);
+      this.authStore.setLoading(false);
+    }
+  }
+}
+```
+
+### Token Refresh with Auto-Retry
+
+```typescript
+import { Injectable, inject } from '@angular/core';
+import { AuthStore } from '@/app/store/auth/auth.store';
+import { AuthApiService } from '@/app/core/services/http/auth-api.service';
+import { interval } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class AuthFacade {
+  private authStore = inject(AuthStore);
+  private authApi = inject(AuthApiService);
+  
+  constructor() {
+    // Check token expiration every 30 seconds
+    interval(30_000).subscribe(() => {
+      this.autoRefreshIfNeeded();
+    });
+  }
+  
+  private async autoRefreshIfNeeded() {
+    const expiresIn = this.authStore.accessTokenExpiresIn();
+    
+    // Refresh if less than 5 minutes remaining
+    if (expiresIn && expiresIn < 5 * 60 * 1000) {
+      console.log('[AuthFacade] Token expiring soon, refreshing...');
+      await this.refreshToken();
+    }
+  }
+  
+  async refreshToken(): Promise<void> {
+    const refreshToken = this.authStore.refreshTokenInMemory();
+    if (!refreshToken) {
+      console.warn('[AuthFacade] No refresh token available');
+      return;
+    }
+    
+    if (this.authStore.refreshInProgress()) {
+      console.log('[AuthFacade] Refresh already in progress');
+      return;
+    }
+    
+    this.authStore.setRefreshInProgress(true);
+    
+    try {
+      const response = await this.authApi.refreshToken(refreshToken).toPromise();
+      
+      const expiresAt = Date.now() + (response.expiresIn * 1000);
+      
+      this.authStore.setAuth({
+        accessToken: response.accessToken,
+        accessTokenExpiresAt: expiresAt,
+        refreshTokenInMemory: response.refreshToken,
+      });
+      
+      console.log('[AuthFacade] Token refreshed successfully');
+    } catch (error) {
+      console.error('[AuthFacade] Token refresh failed', error);
+      // If refresh fails, clear auth and redirect to login
+      this.authStore.clear();
+    } finally {
+      this.authStore.setRefreshInProgress(false);
+    }
+  }
+}
+```
+
+### Protected Component
+
+```typescript
+import { Component, inject, OnInit } from '@angular/core';
+import { AuthStore } from '@/app/store/auth/auth.store';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-dashboard',
+  template: `
+    <div class="dashboard">
+      <h1>Bienvenido, {{ authStore.user()?.name }}</h1>
+      
+      <div class="user-info">
+        <p>ID: {{ authStore.user()?.id }}</p>
+        <p>Tipo de sesión: {{ authStore.sessionType() }}</p>
+        <p>Token expira en: {{ formatExpiresIn() }}</p>
+      </div>
+      
+      @if (authStore.isAccessTokenValid()) {
+        <p class="status valid">Token válido</p>
+      } @else {
+        <p class="status invalid">Token inválido</p>
+      }
+      
+      <button (click)="logout()">Cerrar sesión</button>
+    </div>
+  `
+})
+export class DashboardComponent implements OnInit {
+  authStore = inject(AuthStore);
+  router = inject(Router);
+  
+  ngOnInit() {
+    if (!this.authStore.isAuthenticated()) {
+      this.router.navigate(['/login']);
+    }
+  }
+  
+  formatExpiresIn(): string {
+    const ms = this.authStore.accessTokenExpiresIn();
+    if (!ms) return 'Desconocido';
+    
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  }
+  
+  async logout() {
+    this.authStore.clear();
+    await this.router.navigate(['/login']);
+  }
+}
+```
+
+## HTTP Interceptor Integration
+
+```typescript
+import { inject } from '@angular/core';
+import { HttpInterceptorFn } from '@angular/common/http';
+import { AuthStore } from '@/app/store/auth/auth.store';
+
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const authStore = inject(AuthStore);
+  const token = authStore.accessToken();
+  
+  if (token && authStore.isAccessTokenValid()) {
+    const cloned = req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return next(cloned);
+  }
+  
+  return next(req);
+};
+```

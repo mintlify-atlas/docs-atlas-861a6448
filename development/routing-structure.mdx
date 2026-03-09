@@ -1,0 +1,572 @@
+---
+title: 'Routing Structure'
+description: 'Complete guide to the routing configuration, guards, layouts, and navigation patterns in the Rodando Driver app'
+icon: 'route'
+---
+
+## Overview
+
+The Rodando Driver app uses **Angular's standalone routing** with lazy-loaded modules, route guards for authentication, and layout-based navigation. The routing structure is defined in `app.routes.ts`.
+
+## Route Configuration
+
+The complete route structure from `src/app/app.routes.ts:1`:
+
+```typescript:src/app/app.routes.ts
+import { Routes } from '@angular/router';
+import { authGuardWithRefresh, authGuardWithRefreshCanLoad, 
+         authGuardWithRefreshChild, guestGuard, guestGuardCanLoad } 
+  from './core/guards/auth.guard';
+import { DefaultLayoutComponent } from './shared/layouts/default-layout/default-layout.component';
+import { MapLayoutComponent } from './shared/layouts/map-layout/map-layout.component';
+
+export const routes: Routes = [
+  // Public routes (blocked if authenticated)
+  {
+    path: 'auth',
+    loadComponent: () => import('./features/auth/auth.component'),
+    canActivate: [guestGuard],
+    canLoad: [guestGuardCanLoad],
+    children: [
+      {
+        path: '',
+        loadChildren: () => import('./features/auth/auth.routes'),
+      },
+    ],
+  },
+
+  // Protected routes (require authentication)
+  {
+    path: '',
+    component: DefaultLayoutComponent,
+    canActivateChild: [authGuardWithRefreshChild],
+    children: [
+      // Tabs
+      { path: 'home', loadComponent: () => import('./features/tabs/home/home.component') },
+      { path: 'trips', loadComponent: () => import('./features/tabs/trips/trips.component') },
+      { path: 'earnings', loadComponent: () => import('./features/tabs/earnings/earnings.component') },
+      
+      // Sidebar pages
+      { path: 'profile', loadComponent: () => import('./features/sidebar/profile/profile.component') },
+      { path: 'wallet', loadComponent: () => import('./features/sidebar/wallet/wallet.component') },
+      { path: 'settings', loadComponent: () => import('./features/sidebar/settings/settings.component') },
+      // ...
+    ],
+  },
+
+  // Fullscreen route (outside layout)
+  {
+    path: 'map',
+    loadComponent: () => import('./features/tabs/map/map.component'),
+    canActivate: [authGuardWithRefresh],
+  },
+
+  // Wildcard
+  { path: '**', redirectTo: '' },
+];
+```
+
+## Route Zones
+
+The app has three distinct route zones:
+
+### 1. Public Zone (Auth)
+
+**Path**: `/auth/*`  
+**Purpose**: Authentication flows (login, register, password reset)  
+**Protection**: `guestGuard` - blocks access if user is already authenticated  
+**Layout**: Standalone (no tabs/sidebar)
+
+```typescript:src/app/app.routes.ts
+{
+  path: 'auth',
+  loadComponent: () => import('./features/auth/auth.component'),
+  canActivate: [guestGuard],
+  canLoad: [guestGuardCanLoad],
+  children: [
+    {
+      path: '',
+      loadChildren: () => import('./features/auth/auth.routes'),
+    },
+  ],
+}
+```
+
+<Info>
+  The `guestGuard` redirects authenticated users to the home page, preventing them from accessing login/register pages while logged in.
+</Info>
+
+### 2. Protected Zone (Default Layout)
+
+**Path**: `/*` (root)  
+**Purpose**: Main application features  
+**Protection**: `authGuardWithRefreshChild` - requires authentication, auto-refreshes tokens  
+**Layout**: `DefaultLayoutComponent` (Header + Content + TabBar + Sidebar)
+
+#### Tab Routes
+
+```typescript:src/app/app.routes.ts
+// Home Tab
+{
+  path: 'home',
+  loadComponent: () => import('./features/tabs/home/home.component'),
+  data: { title: 'Inicio', tab: 'home' },
+}
+
+// Trips Tab (nested routes)
+{
+  path: 'trips',
+  loadComponent: () => import('./features/tabs/trips/trips.component'),
+  children: [
+    { path: '', redirectTo: 'active', pathMatch: 'full' },
+    {
+      path: 'active',
+      loadComponent: () => import('./features/tabs/trips/active/active.component'),
+      data: { title: 'Viaje Activo', tab: 'trips' },
+    },
+    {
+      path: 'history',
+      loadComponent: () => import('./features/tabs/trips/historial/historial.component'),
+      data: { title: 'Historial', tab: 'trips' },
+    },
+  ],
+}
+
+// Earnings Tab
+{
+  path: 'earnings',
+  loadComponent: () => import('./features/tabs/earnings/earnings.component'),
+  data: { title: 'Ganancias', tab: 'earnings' },
+}
+```
+
+#### Sidebar Routes
+
+```typescript:src/app/app.routes.ts
+// Profile
+{
+  path: 'profile',
+  loadComponent: () => import('./features/sidebar/profile/profile.component'),
+  data: { title: 'Perfil' },
+}
+
+// Vehicle
+{
+  path: 'vehicle',
+  loadComponent: () => import('./features/sidebar/vehicle/vehicle.component'),
+  data: { title: 'Vehículo' },
+}
+
+// Wallet
+{
+  path: 'wallet',
+  loadComponent: () => import('./features/sidebar/wallet/wallet.component'),
+  data: { title: 'Wallet' },
+}
+
+// ... and more (plans, referrals, notifications, support, security, settings, about)
+```
+
+<Note>
+  Sidebar routes use the same layout as tabs, providing visual consistency. The sidebar can overlay or push content depending on the screen size.
+</Note>
+
+### 3. Fullscreen Zone (Map)
+
+**Path**: `/map`  
+**Purpose**: Fullscreen map view for navigation  
+**Protection**: `authGuardWithRefresh`  
+**Layout**: None (fullscreen)
+
+```typescript:src/app/app.routes.ts
+{
+  path: 'map',
+  loadComponent: () => import('./features/tabs/map/map.component'),
+  canActivate: [authGuardWithRefresh],
+}
+```
+
+## Route Guards
+
+The app implements two guard families for comprehensive route protection.
+
+### Authentication Guards
+
+#### `authGuardWithRefresh`
+
+**Purpose**: Protect routes requiring authentication, with automatic token refresh  
+**Type**: `CanActivateFn`  
+**Behavior**:
+
+<Steps>
+  <Step title="Check authentication status">
+    Verifies if the user has a valid access token in `AuthStore`.
+  </Step>
+  
+  <Step title="Attempt silent refresh">
+    If token is expired, calls `AuthFacade.performRefresh()` to get a new token.
+  </Step>
+  
+  <Step title="Allow or redirect">
+    - **Success**: Allow navigation
+    - **Failure**: Redirect to `/auth/login` with `returnUrl` query param
+  </Step>
+</Steps>
+
+**Implementation**:
+
+```typescript:src/app/core/guards/auth.guard.ts
+export const authGuardWithRefresh: CanActivateFn = (route, state) => {
+  const authStore = inject(AuthStore);
+  const authFacade = inject(AuthFacade);
+  const router = inject(Router);
+
+  // Already authenticated?
+  try { 
+    if (authStore.isAuthenticated && authStore.isAuthenticated()) 
+      return true; 
+  } catch {}
+
+  // Try to refresh token
+  return tryRefreshIfSupported(authStore, authFacade).pipe(
+    map(ok => (ok ? true : toLogin(router, state.url)))
+  );
+};
+```
+
+<Warning>
+  **Important**: The guard returns an `Observable<boolean | UrlTree>`, allowing async token refresh before navigation completes.
+</Warning>
+
+#### Variants
+
+```typescript:src/app/core/guards/auth.guard.ts
+// Protect child routes
+export const authGuardWithRefreshChild: CanActivateChildFn = (childRoute, state) => {
+  return authGuardWithRefresh(childRoute, state);
+};
+
+// Protect lazy-loaded modules
+export const authGuardWithRefreshCanLoad: CanLoadFn = (route: Route, segments: UrlSegment[]) => {
+  const authStore = inject(AuthStore);
+  const authFacade = inject(AuthFacade);
+  
+  try { if (authStore.isAuthenticated()) return true; } catch {}
+  return tryRefreshIfSupported(authStore, authFacade);
+};
+
+// Protect routes with canMatch
+export const authGuardWithRefreshCanMatch: CanMatchFn = (route, segments) => {
+  // Same logic as canLoad
+};
+```
+
+### Guest Guards
+
+#### `guestGuard`
+
+**Purpose**: Block access to public routes when user is authenticated  
+**Type**: `CanActivateFn`  
+**Use Case**: Prevent logged-in users from accessing login/register pages
+
+**Implementation**:
+
+```typescript:src/app/core/guards/auth.guard.ts
+export const guestGuard: CanActivateFn = (route, state) => {
+  const authStore = inject(AuthStore);
+  const router = inject(Router);
+
+  try {
+    if (!authStore.isAuthenticated || !authStore.isAuthenticated()) 
+      return true;
+  } catch {
+    return true;
+  }
+
+  // Already authenticated - redirect to returnUrl or root
+  const returnUrl = (route.queryParams && route.queryParams['returnUrl']) ?? '/';
+  return router.createUrlTree([returnUrl]);
+};
+
+// CanLoad variant
+export const guestGuardCanLoad: CanLoadFn = (route, segments) => {
+  const authStore = inject(AuthStore);
+  try {
+    return !(authStore.isAuthenticated && authStore.isAuthenticated());
+  } catch {
+    return true;
+  }
+};
+```
+
+## Layouts
+
+The app uses **wrapper components** to provide consistent UI structure.
+
+### Default Layout
+
+**Used by**: Tab routes, sidebar routes  
+**Structure**: Header + Router Outlet + Tab Bar + Sidebar
+
+```typescript:src/app/shared/layouts/default-layout/default-layout.component.ts
+@Component({
+  selector: 'app-default-layout',
+  templateUrl: './default-layout.component.html',
+  styleUrls: ['./default-layout.component.scss'],
+  standalone: true,
+  imports: [
+    IonHeader, 
+    FloatingButtonComponent, 
+    IonRouterOutlet, 
+    IonFooter, 
+    IonToolbar, 
+    IonButton, 
+    IonIcon, 
+    RouterModule, 
+    IonContent
+  ],
+})
+export class DefaultLayoutComponent implements OnInit {
+  // Layout logic
+}
+```
+
+**Template structure**:
+```html
+<ion-header>
+  <app-dinamic-header></app-dinamic-header>
+</ion-header>
+
+<ion-content>
+  <ion-router-outlet></ion-router-outlet>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <!-- Tab buttons -->
+  </ion-toolbar>
+</ion-footer>
+
+<app-floating-button></app-floating-button>
+```
+
+### Map Layout
+
+**Used by**: `/map` route  
+**Structure**: Fullscreen content (no header/footer)
+
+<Info>
+  The map layout provides an immersive navigation experience without UI chrome, maximizing map visibility.
+</Info>
+
+## Route Data
+
+Routes can carry metadata in the `data` property:
+
+```typescript
+{
+  path: 'home',
+  loadComponent: () => import('./features/tabs/home/home.component'),
+  data: { 
+    title: 'Inicio',     // Page title
+    tab: 'home'          // Active tab identifier
+  },
+}
+```
+
+**Accessing route data**:
+
+```typescript
+import { ActivatedRoute } from '@angular/router';
+
+export class HomeComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  
+  ngOnInit() {
+    const title = this.route.snapshot.data['title'];
+    const tab = this.route.snapshot.data['tab'];
+  }
+}
+```
+
+## Navigation Patterns
+
+### Programmatic Navigation
+
+```typescript
+import { Router } from '@angular/router';
+
+export class MyComponent {
+  private router = inject(Router);
+  
+  // Simple navigation
+  goToHome() {
+    this.router.navigate(['/home']);
+  }
+  
+  // Navigation with query params
+  goToTrip(tripId: string) {
+    this.router.navigate(['/trips/active'], { 
+      queryParams: { id: tripId } 
+    });
+  }
+  
+  // Replace current history entry
+  replaceRoute() {
+    this.router.navigate(['/trips/active'], { 
+      replaceUrl: true 
+    });
+  }
+}
+```
+
+### Redirects
+
+```typescript:src/app/app.routes.ts
+// Redirect root to home
+{ path: '', redirectTo: 'home', pathMatch: 'full' }
+
+// Redirect trips to trips/active
+{ path: 'trips', redirectTo: 'trips/active', pathMatch: 'full' }
+
+// Catch-all redirect
+{ path: '**', redirectTo: '' }
+```
+
+### Return URL Handling
+
+The auth guard preserves the intended destination:
+
+```typescript:src/app/core/guards/auth.guard.ts
+function toLogin(router: Router, returnUrl?: string): UrlTree {
+  return router.createUrlTree(['/auth/login'], { 
+    queryParams: { returnUrl: returnUrl ?? undefined } 
+  });
+}
+```
+
+**Usage after login**:
+
+```typescript
+// In login component
+const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
+await this.router.navigateByUrl(returnUrl);
+```
+
+## Lazy Loading Flow
+
+<Steps>
+  <Step title="User navigates to route">
+    Angular router matches the route configuration.
+  </Step>
+  
+  <Step title="Guards execute">
+    `canActivate`, `canLoad`, `canActivateChild` guards run in sequence.
+  </Step>
+  
+  <Step title="Module downloads">
+    If guards pass, the lazy-loaded module chunk downloads.
+  </Step>
+  
+  <Step title="Component instantiates">
+    The component is created and rendered in the router outlet.
+  </Step>
+</Steps>
+
+**Bundle splitting**:
+
+```plaintext
+main.js              (Framework + core services)
+auth-component.js    (Auth feature)
+trips-component.js   (Trips feature)
+earnings-component.js (Earnings feature)
+...
+```
+
+## Route Guard Execution Order
+
+1. **`canDeactivate`** - Can leave current route?
+2. **`canLoad`** - Should load the lazy module?
+3. **`canActivate`** - Can activate this route?
+4. **`canActivateChild`** - Can activate child routes?
+5. **`resolve`** - Prefetch data before activation
+
+<Warning>
+  **canLoad vs canActivate**: Use `canLoad` to prevent downloading the module. Use `canActivate` when you need to download but conditionally activate.
+</Warning>
+
+## Navigation Events
+
+Listen to router events for loading indicators:
+
+```typescript
+import { Router, NavigationStart, NavigationEnd } from '@angular/router';
+
+export class AppComponent {
+  private router = inject(Router);
+  
+  ngOnInit() {
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationStart) {
+        // Show loading
+      }
+      if (event instanceof NavigationEnd) {
+        // Hide loading
+      }
+    });
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always use lazy loading" icon="rocket">
+    Improves initial load time and reduces main bundle size.
+  </Card>
+  
+  <Card title="Protect routes early" icon="shield">
+    Use `canLoad` to prevent unauthorized module downloads.
+  </Card>
+  
+  <Card title="Use route data" icon="database">
+    Store metadata like titles, permissions, and breadcrumbs.
+  </Card>
+  
+  <Card title="Handle returnUrl" icon="arrow-left">
+    Always preserve user's intended destination after auth.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Guard not executing
+
+**Problem**: Route guard doesn't run  
+**Solution**: Check guard is registered in route config and returns Observable/Promise/boolean
+
+### Redirect loop
+
+**Problem**: Infinite redirects between routes  
+**Solution**: Ensure guards don't create circular dependencies (auth → login → auth)
+
+### Lazy module fails to load
+
+**Problem**: "Cannot find module" error  
+**Solution**: Verify import path and that component/module is exported
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="sitemap" href="/development/architecture-overview">
+    Learn about the overall app architecture.
+  </Card>
+  
+  <Card title="State Management" icon="database" href="/development/state-management">
+    Understand how guards interact with auth state.
+  </Card>
+  
+  <Card title="Authentication Flow" icon="lock" href="/features/authentication">
+    Deep dive into authentication implementation.
+  </Card>
+</CardGroup>

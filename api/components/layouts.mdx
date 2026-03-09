@@ -1,0 +1,424 @@
+---
+title: 'Layout Components'
+description: 'App-wide layout components for consistent page structure and navigation'
+---
+
+## Overview
+
+The Rodando Driver app provides two layout components that establish the application's structure and navigation patterns. These components wrap page content and provide consistent UI elements across different sections of the app.
+
+## DefaultLayoutComponent
+
+The primary layout component for most pages, featuring a floating header with action buttons and a bottom navigation bar.
+
+### Component Metadata
+
+<ParamField path="selector" type="string" default="app-default-layout">
+  The component selector used in templates
+</ParamField>
+
+<ParamField path="standalone" type="boolean" default="true">
+  Standalone component that can be imported directly without a module
+</ParamField>
+
+<ParamField path="imports" type="array">
+  Required imports: `IonHeader`, `IonRouterOutlet`, `IonFooter`, `IonToolbar`, `IonButton`, `IonIcon`, `FloatingButtonComponent`, `RouterModule`, `IonContent`
+</ParamField>
+
+### Structure
+
+The layout consists of three main sections:
+
+1. **Floating Header**: Fixed position header with floating action buttons
+2. **Content Area**: Router outlet for page content
+3. **Bottom Navigation**: Fixed footer with tab navigation
+
+### Header
+
+The header contains two floating buttons:
+
+<ParamField path="Menu Button" type="FloatingButtonComponent">
+  - Icon: `menu-outline`
+  - Position: `start` (left side)
+  - Opens the main navigation menu
+</ParamField>
+
+<ParamField path="Notifications Button" type="FloatingButtonComponent">
+  - Icon: `notifications-outline`
+  - Position: `end` (right side)
+  - Opens notifications panel
+</ParamField>
+
+### Bottom Navigation
+
+The footer provides tab-based navigation with four main sections:
+
+<ParamField path="Home Tab" type="navigation">
+  - Icon: `home-outline`
+  - Route: `/home`
+  - Description: Dashboard and main overview
+  - Active state: Exact route match required
+</ParamField>
+
+<ParamField path="Map Tab" type="navigation">
+  - Icon: `location-outline`
+  - Route: `/map`
+  - Description: Map view for navigation and trip tracking
+</ParamField>
+
+<ParamField path="Active Trips Tab" type="navigation">
+  - Icon: `time-outline`
+  - Route: `/trips/active`
+  - Description: View and manage active trips
+</ParamField>
+
+<ParamField path="Earnings Tab" type="navigation">
+  - Icon: `person-outline`
+  - Route: `/earnings`
+  - Description: Driver profile and earnings information
+</ParamField>
+
+### Usage
+
+The layout is typically used in route configurations:
+
+```typescript
+import { Routes } from '@angular/router';
+import { DefaultLayoutComponent } from '@/app/shared/layouts/default-layout/default-layout.component';
+
+export const routes: Routes = [
+  {
+    path: '',
+    component: DefaultLayoutComponent,
+    children: [
+      {
+        path: 'home',
+        loadComponent: () => import('./pages/home/home.component').then(m => m.HomeComponent)
+      },
+      {
+        path: 'map',
+        loadComponent: () => import('./pages/map/map.component').then(m => m.MapComponent)
+      },
+      {
+        path: 'trips/active',
+        loadComponent: () => import('./pages/trips/active/active.component').then(m => m.ActiveComponent)
+      },
+      {
+        path: 'earnings',
+        loadComponent: () => import('./pages/earnings/earnings.component').then(m => m.EarningsComponent)
+      },
+      {
+        path: '',
+        redirectTo: 'home',
+        pathMatch: 'full'
+      }
+    ]
+  }
+];
+```
+
+### Template Structure
+
+```html
+<ion-header id="appHeader" slot="fixed" class="floating-header">
+  <div class="floating-buttons">
+    <app-floating-button 
+      iconName="menu-outline" 
+      positionHorizontal="start">
+    </app-floating-button>
+    <app-floating-button 
+      iconName="notifications-outline" 
+      positionHorizontal="end">
+    </app-floating-button>
+  </div>
+</ion-header>
+
+<ion-router-outlet></ion-router-outlet>
+
+<ion-footer id="appFooter" class="custom-bottom-bar" slot="fixed">
+  <ion-toolbar>
+    <div class="tab-icons">
+      <!-- Navigation buttons -->
+    </div>
+  </ion-toolbar>
+</ion-footer>
+```
+
+### Styling
+
+The component uses custom CSS classes for styling:
+
+<ParamField path=".floating-header" type="CSS class">
+  Styles the header with floating button positioning
+</ParamField>
+
+<ParamField path=".floating-buttons" type="CSS class">
+  Container for the floating action buttons
+</ParamField>
+
+<ParamField path=".custom-bottom-bar" type="CSS class">
+  Styles the bottom navigation bar
+</ParamField>
+
+<ParamField path=".tab-icons" type="CSS class">
+  Container for tab navigation icons
+</ParamField>
+
+<ParamField path=".active" type="CSS class">
+  Applied to active tab buttons via `routerLinkActive`
+</ParamField>
+
+### Custom Styling Example
+
+```scss
+// Override layout styles
+app-default-layout {
+  --ion-toolbar-background: #ffffff;
+  --ion-toolbar-border-color: #e0e0e0;
+  
+  .floating-header {
+    background: transparent;
+    padding: 16px;
+  }
+  
+  .custom-bottom-bar {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    
+    ion-button.active {
+      ion-icon {
+        color: var(--ion-color-primary);
+      }
+    }
+  }
+}
+```
+
+---
+
+## MapLayoutComponent
+
+A minimal layout component for map-focused pages with full-screen map display.
+
+### Component Metadata
+
+<ParamField path="selector" type="string" default="app-map-layout">
+  The component selector used in templates
+</ParamField>
+
+<ParamField path="standalone" type="boolean" default="false">
+  This component requires a module declaration
+</ParamField>
+
+### Structure
+
+The component provides a basic container for map-centric views:
+
+```html
+<p>
+  map-layout works!
+</p>
+```
+
+**Note**: This component appears to be a placeholder or minimal implementation. In a production environment, you would typically enhance it with:
+- Full-screen map container
+- Overlay controls
+- Custom navigation elements
+- Status indicators
+
+### Usage
+
+Use this layout for dedicated map views:
+
+```typescript
+import { Routes } from '@angular/router';
+import { MapLayoutComponent } from '@/app/shared/layouts/map-layout/map-layout.component';
+
+export const routes: Routes = [
+  {
+    path: 'live-tracking',
+    component: MapLayoutComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./pages/tracking/tracking.component').then(m => m.TrackingComponent)
+      }
+    ]
+  }
+];
+```
+
+### Typical Enhancement Pattern
+
+For production use, you might enhance the map layout like this:
+
+```html
+<!-- Enhanced MapLayoutComponent template -->
+<div class="map-layout-container">
+  <div class="map-wrapper">
+    <app-base-map [height]="'100vh'" [width]="'100%'"></app-base-map>
+  </div>
+  
+  <div class="map-overlay">
+    <div class="overlay-top">
+      <ion-button fill="clear" class="back-button">
+        <ion-icon name="arrow-back"></ion-icon>
+      </ion-button>
+    </div>
+    
+    <div class="overlay-bottom">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+</div>
+```
+
+```scss
+// Enhanced MapLayoutComponent styles
+.map-layout-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.overlay-top {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+}
+
+.overlay-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+```
+
+## Layout Selection Guide
+
+Choose the appropriate layout based on your page requirements:
+
+### Use DefaultLayoutComponent when:
+- Page needs standard navigation (header + bottom tabs)
+- Content is primarily text, lists, or forms
+- User needs quick access to all app sections
+- Page is part of the main app flow
+
+**Examples**: Home dashboard, trip list, earnings overview, settings
+
+### Use MapLayoutComponent when:
+- Page is map-centric or map-only
+- Full-screen real estate is needed for the map
+- Navigation should be minimal or custom
+- Page focuses on location-based features
+
+**Examples**: Live trip tracking, route planning, location selection
+
+## Layout Integration with Child Components
+
+### Accessing Layout from Child Routes
+
+Child components can interact with their parent layout:
+
+```typescript
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+
+export class ChildPageComponent {
+  constructor(private router: Router) {}
+  
+  navigateToHome() {
+    // Layout handles navigation automatically
+    this.router.navigate(['/home']);
+  }
+}
+```
+
+### Communication Between Layout and Children
+
+Use services for state management across layout and child components:
+
+```typescript
+import { Injectable } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class LayoutService {
+  private headerVisible = new BehaviorSubject<boolean>(true);
+  headerVisible$ = this.headerVisible.asObservable();
+  
+  setHeaderVisibility(visible: boolean) {
+    this.headerVisible.next(visible);
+  }
+}
+```
+
+## Best Practices
+
+### Performance
+
+1. **Use lazy loading**: Load child routes with `loadComponent()` for better performance
+2. **Avoid nested layouts**: Don't nest DefaultLayoutComponent instances
+3. **Cache navigation state**: Use Angular's router state management
+
+### Accessibility
+
+1. **Navigation labels**: Ensure all navigation buttons have proper aria-labels
+2. **Active state indication**: Use both visual and ARIA attributes for active tabs
+3. **Keyboard navigation**: Test tab navigation with keyboard
+
+### Responsive Design
+
+```scss
+// Adapt layout for different screen sizes
+app-default-layout {
+  @media (min-width: 768px) {
+    .custom-bottom-bar {
+      display: none; // Hide bottom nav on larger screens
+    }
+    
+    .floating-header {
+      // Show full menu bar on larger screens
+    }
+  }
+}
+```
+
+## Source Code References
+
+- **DefaultLayoutComponent**: `src/app/shared/layouts/default-layout/`
+  - Component: `default-layout.component.ts`
+  - Template: `default-layout.component.html`
+  - Styles: `default-layout.component.scss`
+  - Tests: `default-layout.component.spec.ts`
+
+- **MapLayoutComponent**: `src/app/shared/layouts/map-layout/`
+  - Component: `map-layout.component.ts`
+  - Template: `map-layout.component.html`
+  - Styles: `map-layout.component.scss`
+  - Tests: `map-layout.component.spec.ts`

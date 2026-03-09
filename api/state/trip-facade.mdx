@@ -1,0 +1,536 @@
+---
+title: 'TripFacade'
+description: 'High-level service orchestrating trip lifecycle and WebSocket event handling'
+---
+
+## Overview
+
+The `TripFacade` is the primary service for managing the complete trip lifecycle from a driver's perspective. It orchestrates the `TripStore`, `TripApiService`, and `DriverWsService` to handle:
+
+- WebSocket event subscriptions (offers, assignments, trip status changes)
+- Offer acceptance/rejection
+- Trip phase transitions (arriving, in progress, completed)
+- Countdown timers for offers and waiting periods
+- Waiting time penalties and dynamic fare updates
+- UI modal management
+
+## Constructor and WebSocket Subscriptions
+
+The facade automatically subscribes to key WebSocket events in its constructor:
+
+### onOffer$
+
+Triggered when a new trip offer is sent to the driver.
+
+```typescript
+this.ws.onOffer$.subscribe(async (offer) => {
+  // Checks if assignment already handled (prevents duplicates)
+  // Verifies driver is in 'idle' phase
+  // Sets active trip ID and assignment ID
+  // Refreshes trip data
+  // Starts countdown timer
+  // Opens offer modal
+});
+```
+
+**Offer payload:**
+- `assignmentId`: Unique assignment identifier
+- `tripId`: Trip identifier
+- `expiresAt`: ISO timestamp when offer expires
+- `ttlSec`: Time-to-live in seconds
+
+### onDriverAssigned$
+
+Triggered when driver is confirmed as assigned to trip.
+
+```typescript
+this.ws.onDriverAssigned$.subscribe(async (p) => {
+  // Sets active trip ID
+  // Updates phase to 'assigned'
+  // Stores passenger information
+  // Refreshes trip data
+});
+```
+
+### onArrivingStarted$
+
+Triggered when driver starts navigating to pickup location.
+
+```typescript
+this.ws.onArrivingStarted$.subscribe(async (ev) => {
+  // Updates phase to 'arriving'
+  // Closes offer modal if still open
+  // Refreshes trip data
+});
+```
+
+### onTripStarted$
+
+Triggered when trip officially begins (passenger picked up).
+
+```typescript
+this.ws.onTripStarted$.subscribe(async (p) => {
+  // Updates phase to 'in_progress'
+  // Refreshes trip data
+});
+```
+
+### onTripCompleted$
+
+Triggered when trip is completed.
+
+```typescript
+this.ws.onTripCompleted$.subscribe(async (p) => {
+  // Updates phase to 'completed'
+  // Refreshes trip data
+  // Keeps state for summary view
+});
+```
+
+### onTripCancelled$
+
+Triggered when trip is cancelled by passenger or system.
+
+```typescript
+this.ws.onTripCancelled$.subscribe(async (p) => {
+  // Updates phase to 'cancelled'
+  // Refreshes trip data
+});
+```
+
+## State Readers
+
+### vm()
+
+```typescript
+vm(): DriverTripState
+```
+
+Returns the complete current state snapshot.
+
+### modalVm
+
+```typescript
+modalVm = this.store.modalVm
+```
+
+Computed signal containing formatted data for the offer modal.
+
+### trip$
+
+```typescript
+trip$ = this.store.trip
+```
+
+Computed signal for current trip data.
+
+### phase$
+
+```typescript
+phase$ = this.store.phase
+```
+
+Computed signal for current trip phase.
+
+### remainingSec$
+
+```typescript
+remainingSec$ = this.store.remainingSec
+```
+
+Computed signal for offer countdown remaining seconds.
+
+### modalOpen$
+
+```typescript
+modalOpen$ = this.store.modalOpen
+```
+
+Computed signal for modal open state.
+
+## Public Methods
+
+### acceptOffer()
+
+```typescript
+async acceptOffer(): Promise<void>
+```
+
+Accepts the current trip offer.
+
+**Process:**
+1. Validates `offerAssignmentId` exists
+2. Stops countdown timer
+3. Calls `tripsApi.acceptAssignment(assignmentId)`
+4. Refreshes trip data
+5. Marks assignment as handled (prevents duplicate actions)
+6. Clears offer assignment ID
+7. Updates phase to `'assigned'`
+8. Closes offer modal
+9. Navigates to `/trips/active`
+
+**Error handling:** Sets error state with message from API or fallback message.
+
+**Example:**
+```typescript
+import { Component, inject } from '@angular/core';
+import { TripFacade } from '@/app/store/trip/trip.facade';
+
+@Component({
+  selector: 'app-offer-modal',
+  template: `
+    <button (click)="facade.acceptOffer()" [disabled]="facade.vm().status === 'loading'">
+      Aceptar viaje
+    </button>
+  `
+})
+export class OfferModalComponent {
+  facade = inject(TripFacade);
+}
+```
+
+### declineOffer()
+
+```typescript
+async declineOffer(): Promise<void>
+```
+
+Declines the current trip offer.
+
+**Process:**
+1. Validates `offerAssignmentId` exists
+2. Stops countdown timer
+3. Calls `tripsApi.declineAssignment(assignmentId)`
+4. Refreshes trip data
+5. Marks assignment as handled
+6. Clears offer assignment ID
+7. Updates phase to `'idle'`
+8. Closes offer modal
+
+**Error handling:** Sets error state with API message.
+
+**Example:**
+```typescript
+<button (click)="facade.declineOffer()" class="decline-btn">
+  Rechazar
+</button>
+```
+
+### refreshTrip()
+
+```typescript
+async refreshTrip(): Promise<void>
+```
+
+Fetches latest trip data from API.
+
+**Process:**
+1. Gets `activeTripId` from state
+2. Calls `tripsApi.getById(id)`
+3. Updates trip in store
+4. Extracts and sets fare information (base fare, currency)
+
+**Fare extraction logic:**
+```typescript
+const baseFare = trip.fareEstimatedTotal ?? trip.fareFinalTotal ?? null;
+const currency = trip.fareFinalCurrency ?? trip.fareEstimatedCurrency ?? 'CUP';
+this.store.setInitialFare(baseFare, currency);
+```
+
+### markArrivedPickup()
+
+```typescript
+async markArrivedPickup(): Promise<void>
+```
+
+Marks driver as arrived at pickup location.
+
+<ParamField path="tripId" type="string" required>
+  Taken from `state.activeTripId`
+</ParamField>
+
+<ParamField path="driverId" type="string" required>
+  Resolved from trip data or auth store
+</ParamField>
+
+**Process:**
+1. Validates `tripId` and `driverId`
+2. Calls `tripsApi.markArrivedPickup(tripId, driverId)`
+3. Extracts `arrivedPickupAt` timestamp from response
+4. Updates state with arrival timestamp
+5. Sets phase to `'arriving'`
+6. Updates trip data
+7. Starts waiting timer with `startWaitingTimer()`
+
+**Example:**
+```typescript
+<button 
+  (click)="facade.markArrivedPickup()" 
+  [disabled]="facade.phase$() !== 'assigned'"
+>
+  He llegado
+</button>
+```
+
+### startTrip()
+
+```typescript
+async startTrip(): Promise<void>
+```
+
+Starts the trip (passenger has boarded).
+
+**Process:**
+1. Validates `tripId` and `driverId`
+2. Calls `tripsApi.startTrip(tripId, driverId)`
+3. Updates phase to `'in_progress'`
+4. Stops waiting timer
+5. Refreshes trip data
+
+**Example:**
+```typescript
+<button 
+  (click)="facade.startTrip()" 
+  [disabled]="facade.phase$() !== 'arriving'"
+>
+  Iniciar viaje
+</button>
+```
+
+### completeTrip()
+
+```typescript
+async completeTrip(): Promise<void>
+```
+
+Completes the trip and processes payment.
+
+**Process:**
+1. Calculates final fare breakdown:
+   - `base`: Initial fare estimate
+   - `extra`: Waiting penalty charges
+   - `finalTotal`: Complete amount to collect
+2. Opens `DriverConfirmOrderModalComponent` with fare details
+3. Waits for driver confirmation
+4. If confirmed, constructs payload:
+   ```typescript
+   {
+     driverId: string,
+     extraFees: number | null,
+     waitingTimeMinutes: number | null,
+     waitingReason: string | null
+   }
+   ```
+5. Calls `tripsApi.completeTrip(tripId, payload)`
+6. Updates phase to `'completed'`
+7. Updates trip data with final results
+
+**Fare calculation:**
+```typescript
+const base = state.baseFare ?? trip?.fareEstimatedTotal ?? trip?.fareFinalTotal ?? null;
+const extra = state.waitingExtraFare ?? 0;
+const finalTotal = trip?.fareFinalTotal ?? state.liveFare ?? (base + extra);
+```
+
+**Example:**
+```typescript
+<button 
+  (click)="facade.completeTrip()" 
+  [disabled]="facade.phase$() !== 'in_progress'"
+>
+  Finalizar y cobrar
+</button>
+```
+
+### clearAll()
+
+```typescript
+clearAll(): void
+```
+
+Resets all state and stops timers. Call when driver needs to return to idle state.
+
+```typescript
+clearAll() {
+  this.stopCountdown();
+  this.store.reset();
+}
+```
+
+## Timer Management
+
+### Countdown Timer (Offer Expiration)
+
+#### startCountdown(opts)
+
+<ParamField path="opts.expiresAtIso" type="string">
+  ISO timestamp when offer expires
+</ParamField>
+
+<ParamField path="opts.ttlSec" type="number">
+  Time-to-live in seconds (fallback if no expiresAtIso)
+</ParamField>
+
+```typescript
+startCountdown(opts: { expiresAtIso?: string; ttlSec?: number }): void
+```
+
+Starts a 1-second interval timer that:
+1. Calculates remaining seconds from expiration time
+2. Updates `remainingSec` in store every second
+3. Auto-closes modal when timer reaches 0
+
+#### stopCountdown()
+
+```typescript
+stopCountdown(): void
+```
+
+Stops and clears the countdown timer subscription.
+
+### Waiting Timer (Pickup Location)
+
+#### startWaitingTimer()
+
+```typescript
+private startWaitingTimer(): void
+```
+
+Starts a 1-second interval timer that:
+1. Increments `waitingSeconds` in store
+2. Checks for penalty threshold (default: 5 seconds in demo)
+3. Applies waiting penalty when threshold reached:
+   ```typescript
+   const extra = Math.max(1, Math.round(base * 0.05)); // 5% or minimum 1
+   this.store.applyWaitingPenalty(extra, text);
+   this.store.setWaitingReason('Espera prolongada en el punto de recogida');
+   ```
+4. Shows `DriverWaitingPenaltyModalComponent` when penalty applied
+
+#### stopWaitingTimer()
+
+```typescript
+private stopWaitingTimer(): void
+```
+
+Stops the waiting timer.
+
+## Modal Management
+
+The facade works with several modal components:
+
+### TripAssignedModalComponent
+Shown when new offer arrives, displays trip details and countdown.
+
+### DriverConfirmOrderModalComponent
+Shown before completing trip, displays fare breakdown and collects payment confirmation.
+
+**Props:**
+- `passengerName`: Passenger display name
+- `originLabel`, `destinationLabel`: Formatted addresses
+- `distanceText`, `durationText`: Formatted trip metrics
+- `base`: Base fare amount
+- `waitingExtra`: Additional waiting charges
+- `total`: Final total amount
+- `currency`: Currency code
+- `waitingSeconds`: Total waiting time
+- `waitingReason`: Reason for waiting charge
+- `paymentMode`: Payment method (e.g., 'cash')
+
+### DriverWaitingPenaltyModalComponent
+Shown when waiting penalty is first applied, alerts driver of additional charges.
+
+## Complete Usage Example
+
+```typescript
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { TripFacade } from '@/app/store/trip/trip.facade';
+
+@Component({
+  selector: 'app-active-trip',
+  template: `
+    <div class="trip-container">
+      <h2>{{ phaseName() }}</h2>
+      
+      @if (facade.trip$(); as trip) {
+        <div class="trip-details">
+          <p>Origen: {{ facade.modalVm().originLabel }}</p>
+          <p>Destino: {{ facade.modalVm().destinationLabel }}</p>
+          <p>Distancia: {{ facade.modalVm().distanceText }}</p>
+          <p>Duración: {{ facade.modalVm().durationText }}</p>
+        </div>
+        
+        <div class="fare-info">
+          <p>Tarifa base: {{ facade.vm().baseFare }} {{ trip.fareFinalCurrency }}</p>
+          <p>Tarifa actual: {{ facade.vm().liveFare }} {{ trip.fareFinalCurrency }}</p>
+          
+          @if (facade.vm().waitingPenaltyApplied) {
+            <p class="penalty">+ {{ facade.vm().waitingExtraFare }} (espera)</p>
+          }
+        </div>
+        
+        <div class="actions">
+          @if (facade.phase$() === 'assigned') {
+            <button (click)="facade.markArrivedPickup()">
+              Marcar llegada
+            </button>
+          }
+          
+          @if (facade.phase$() === 'arriving') {
+            <p>Esperando: {{ facade.vm().waitingSeconds }}s</p>
+            <button (click)="facade.startTrip()">
+              Iniciar viaje
+            </button>
+          }
+          
+          @if (facade.phase$() === 'in_progress') {
+            <button (click)="facade.completeTrip()">
+              Finalizar y cobrar
+            </button>
+          }
+        </div>
+      }
+    </div>
+  `
+})
+export class ActiveTripComponent implements OnDestroy {
+  facade = inject(TripFacade);
+  
+  phaseName() {
+    const phase = this.facade.phase$();
+    const map = {
+      idle: 'Sin viaje activo',
+      assigned: 'Viaje asignado',
+      arriving: 'Llegando al punto de recogida',
+      in_progress: 'Viaje en curso',
+      completed: 'Viaje completado',
+      cancelled: 'Viaje cancelado'
+    };
+    return map[phase] || phase;
+  }
+  
+  ngOnDestroy() {
+    // Clean up when component is destroyed
+    // Note: usually you want to keep state until trip is completed
+    // this.facade.clearAll();
+  }
+}
+```
+
+## State Flow Diagram
+
+```
+idle
+  ↓ (WebSocket: onOffer$)
+assigned → (acceptOffer)
+  ↓
+assigned → (markArrivedPickup + startWaitingTimer)
+  ↓
+arriving → (startTrip + stopWaitingTimer)
+  ↓
+in_progress → (completeTrip)
+  ↓
+completed → (clearAll)
+  ↓
+idle
+```

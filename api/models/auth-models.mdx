@@ -1,0 +1,410 @@
+---
+title: "Authentication Models"
+description: "Data models for authentication and session management in the Rodando Driver application"
+---
+
+## Overview
+
+The authentication models handle login, token refresh, and session management for different platforms (web and mobile).
+
+## Payload Models
+
+### LoginPayload
+
+Payload for login requests. Requires either `email` or `phoneNumber`, along with `password`.
+
+**Source:** `src/app/core/models/auth/auth.payload.ts:8`
+
+```typescript
+interface LoginPayload {
+  email?: string;
+  phoneNumber?: string;
+  password: string;
+  location?: Location;
+  appAudience: AppAudience;
+  expectedUserType: UserType;
+}
+```
+
+<ResponseField name="email" type="string" optional>
+  User's email address. Either `email` or `phoneNumber` is required.
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string" optional>
+  User's phone number. Either `email` or `phoneNumber` is required.
+</ResponseField>
+
+<ResponseField name="password" type="string" required>
+  User's password for authentication.
+</ResponseField>
+
+<ResponseField name="location" type="Location" optional>
+  Geographic location of the user at login time.
+  
+  <Expandable title="Location properties">
+    <ResponseField name="latitude" type="number" required>
+      Latitude coordinate
+    </ResponseField>
+    <ResponseField name="longitude" type="number" required>
+      Longitude coordinate
+    </ResponseField>
+    <ResponseField name="city" type="string" optional>
+      City name
+    </ResponseField>
+    <ResponseField name="country" type="string" optional>
+      Country name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="appAudience" type="AppAudience" required>
+  Identifies which application is making the request.
+  
+  **Possible values:** `driver_app` | `passenger_app` | `admin_panel` | `api_client`
+</ResponseField>
+
+<ResponseField name="expectedUserType" type="UserType" required>
+  The expected user type for this login attempt.
+  
+  **Enum values:** `passenger` | `driver` | `admin`
+</ResponseField>
+
+<CodeGroup>
+```json Example Request
+{
+  "email": "driver@example.com",
+  "password": "SecurePassword123!",
+  "location": {
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "city": "New York",
+    "country": "USA"
+  },
+  "appAudience": "driver_app",
+  "expectedUserType": "driver"
+}
+```
+</CodeGroup>
+
+---
+
+## Response Models
+
+### BaseAuthResponse
+
+Common fields returned by the backend in login/refresh responses.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:4`
+
+```typescript
+interface BaseAuthResponse {
+  accessToken: string;
+  accessTokenExpiresAt: number;
+  refreshTokenExpiresAt?: number;
+  sid?: string;
+  sessionType: SessionType;
+}
+```
+
+<ResponseField name="accessToken" type="string" required>
+  JWT access token for authenticating API requests.
+</ResponseField>
+
+<ResponseField name="accessTokenExpiresAt" type="number" required>
+  Expiration timestamp for the access token in epoch milliseconds.
+</ResponseField>
+
+<ResponseField name="refreshTokenExpiresAt" type="number" optional>
+  Expiration timestamp for the refresh token in epoch milliseconds. Present in login/refresh responses.
+</ResponseField>
+
+<ResponseField name="sid" type="string" optional>
+  Session ID (JTI). Primarily present in refresh responses.
+</ResponseField>
+
+<ResponseField name="sessionType" type="SessionType" required>
+  Type of session being created.
+  
+  **Enum values:** `web` | `mobile_app` | `admin_panel` | `api_client`
+</ResponseField>
+
+---
+
+### LoginResponse
+
+Unified response type for login requests. Returns different formats for mobile and web platforms.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:24`
+
+```typescript
+type LoginResponse = LoginResponseMobile | LoginResponseWeb;
+```
+
+#### LoginResponseMobile
+
+Login response for mobile applications. Includes refresh token in the response body.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:13`
+
+```typescript
+interface LoginResponseMobile extends BaseAuthResponse {
+  refreshToken: string;
+}
+```
+
+<ResponseField name="refreshToken" type="string" required>
+  JWT refresh token for obtaining new access tokens. Included in response body for mobile apps.
+</ResponseField>
+
+<ResponseField name="...BaseAuthResponse" type="BaseAuthResponse">
+  All properties from BaseAuthResponse are included.
+</ResponseField>
+
+<CodeGroup>
+```json Mobile Login Response
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "accessTokenExpiresAt": 1709654400000,
+  "refreshTokenExpiresAt": 1712246400000,
+  "sid": "550e8400-e29b-41d4-a716-446655440000",
+  "sessionType": "mobile_app"
+}
+```
+</CodeGroup>
+
+#### LoginResponseWeb
+
+Login response for web applications. Refresh token is sent via HTTP-only cookie, not in response body.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:18`
+
+```typescript
+interface LoginResponseWeb extends BaseAuthResponse {
+  refreshToken?: never;
+}
+```
+
+<ResponseField name="refreshToken" type="never">
+  Explicitly absent from response body. Refresh token is set as HTTP-only cookie for web clients.
+</ResponseField>
+
+<ResponseField name="...BaseAuthResponse" type="BaseAuthResponse">
+  All properties from BaseAuthResponse are included.
+</ResponseField>
+
+<CodeGroup>
+```json Web Login Response
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "accessTokenExpiresAt": 1709654400000,
+  "refreshTokenExpiresAt": 1712246400000,
+  "sessionType": "web"
+}
+```
+</CodeGroup>
+
+---
+
+### RefreshResponse
+
+Unified response type for token refresh requests. Returns different formats for mobile and web platforms.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:35`
+
+```typescript
+type RefreshResponse = RefreshResponseMobile | RefreshResponseWeb;
+```
+
+#### RefreshResponseMobile
+
+Refresh response for mobile applications. Includes new refresh token in the response body.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:27`
+
+```typescript
+interface RefreshResponseMobile extends BaseAuthResponse {
+  refreshToken: string;
+}
+```
+
+<ResponseField name="refreshToken" type="string" required>
+  New JWT refresh token. Mobile apps receive the refresh token in the response body.
+</ResponseField>
+
+<ResponseField name="...BaseAuthResponse" type="BaseAuthResponse">
+  All properties from BaseAuthResponse are included.
+</ResponseField>
+
+<CodeGroup>
+```json Mobile Refresh Response
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "accessTokenExpiresAt": 1709654400000,
+  "refreshTokenExpiresAt": 1712246400000,
+  "sid": "550e8400-e29b-41d4-a716-446655440000",
+  "sessionType": "mobile_app"
+}
+```
+</CodeGroup>
+
+#### RefreshResponseWeb
+
+Refresh response for web applications. New refresh token is sent via HTTP-only cookie.
+
+**Source:** `src/app/core/models/auth/auth.response.ts:31`
+
+```typescript
+interface RefreshResponseWeb extends BaseAuthResponse {
+  refreshToken?: never;
+}
+```
+
+<ResponseField name="refreshToken" type="never">
+  Explicitly absent from response body. New refresh token is set as HTTP-only cookie.
+</ResponseField>
+
+<ResponseField name="...BaseAuthResponse" type="BaseAuthResponse">
+  All properties from BaseAuthResponse are included.
+</ResponseField>
+
+<CodeGroup>
+```json Web Refresh Response
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "accessTokenExpiresAt": 1709654400000,
+  "sid": "550e8400-e29b-41d4-a716-446655440000",
+  "sessionType": "web"
+}
+```
+</CodeGroup>
+
+---
+
+## Auxiliary Types
+
+### SessionType
+
+Enumeration of available session types for authentication.
+
+**Source:** `src/app/core/models/auth/auth.auxiliary.ts:4`
+
+```typescript
+enum SessionType {
+  WEB = 'web',
+  MOBILE_APP = 'mobile_app',
+  ADMIN_PANEL = 'admin_panel',
+  API_CLIENT = 'api_client',
+}
+```
+
+<ResponseField name="WEB" type="string">
+  Web browser session. Value: `'web'`
+</ResponseField>
+
+<ResponseField name="MOBILE_APP" type="string">
+  Mobile application session. Value: `'mobile_app'`
+</ResponseField>
+
+<ResponseField name="ADMIN_PANEL" type="string">
+  Admin panel session. Value: `'admin_panel'`
+</ResponseField>
+
+<ResponseField name="API_CLIENT" type="string">
+  API client session. Value: `'api_client'`
+</ResponseField>
+
+---
+
+### DeviceInfo
+
+Information about the device initiating the login.
+
+**Source:** `src/app/core/models/auth/auth.auxiliary.ts:14`
+
+```typescript
+interface DeviceInfo {
+  os?: string;
+  browser?: string;
+  model?: string;
+  appVersion?: string;
+}
+```
+
+<ResponseField name="os" type="string" optional>
+  Operating system name and version (e.g., "iOS 16.5", "Android 13").
+</ResponseField>
+
+<ResponseField name="browser" type="string" optional>
+  Browser name and version (e.g., "Chrome 120", "Safari 17").
+</ResponseField>
+
+<ResponseField name="model" type="string" optional>
+  Device model (e.g., "iPhone 14 Pro", "Samsung Galaxy S23").
+</ResponseField>
+
+<ResponseField name="appVersion" type="string" optional>
+  Application version number (e.g., "2.3.1").
+</ResponseField>
+
+---
+
+### Location
+
+Geographic location information.
+
+**Source:** `src/app/core/models/auth/auth.auxiliary.ts:24`
+
+```typescript
+interface Location {
+  latitude: number;
+  longitude: number;
+  city?: string;
+  country?: string;
+}
+```
+
+<ResponseField name="latitude" type="number" required>
+  Geographic latitude coordinate.
+</ResponseField>
+
+<ResponseField name="longitude" type="number" required>
+  Geographic longitude coordinate.
+</ResponseField>
+
+<ResponseField name="city" type="string" optional>
+  City name.
+</ResponseField>
+
+<ResponseField name="country" type="string" optional>
+  Country name.
+</ResponseField>
+
+---
+
+### AppAudience
+
+Type alias identifying which application is making the request.
+
+**Source:** `src/app/core/models/auth/auth.payload.ts:3`
+
+```typescript
+type AppAudience = 'driver_app' | 'passenger_app' | 'admin_panel' | 'api_client';
+```
+
+<ResponseField name="driver_app" type="string">
+  Request from the driver mobile application.
+</ResponseField>
+
+<ResponseField name="passenger_app" type="string">
+  Request from the passenger mobile application.
+</ResponseField>
+
+<ResponseField name="admin_panel" type="string">
+  Request from the administrative web panel.
+</ResponseField>
+
+<ResponseField name="api_client" type="string">
+  Request from an external API client.
+</ResponseField>

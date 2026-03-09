@@ -1,0 +1,421 @@
+---
+title: Contributing Guide
+description: Learn how to contribute to the Rodando Driver project
+icon: git-branch
+---
+
+## Welcome Contributors
+
+Thank you for your interest in contributing to the Rodando Driver project! This guide will help you get started with the development process, coding standards, and contribution workflow.
+
+## Getting Started
+
+<Steps>
+  <Step title="Fork the Repository">
+    Fork the Rodando Driver repository to your GitHub account:
+    
+    ```bash
+    # Navigate to the repository on GitHub and click "Fork"
+    # Then clone your fork
+    git clone https://github.com/YOUR_USERNAME/rodandoApp-frontend.git
+    cd rodandoApp-frontend
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install the required dependencies using npm:
+    
+    ```bash
+    npm install
+    ```
+    
+    <Note>
+      This project uses Angular 18, Ionic 8, and Capacitor 7. Ensure you have Node.js 18+ installed.
+    </Note>
+  </Step>
+
+  <Step title="Set Up Remote">
+    Add the upstream repository as a remote:
+    
+    ```bash
+    git remote add upstream https://github.com/ORIGINAL_OWNER/rodandoApp-frontend.git
+    git fetch upstream
+    ```
+  </Step>
+
+  <Step title="Run Development Server">
+    Start the development server:
+    
+    ```bash
+    npm start
+    ```
+    
+    The app will be available at `http://localhost:4200`
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Branch Naming Convention
+
+Use descriptive branch names that follow this pattern:
+
+<CodeGroup>
+```bash Feature Branch
+git checkout -b feature/trip-matching-algorithm
+git checkout -b feature/earnings-dashboard
+```
+
+```bash Bug Fix
+git checkout -b fix/auth-token-refresh
+git checkout -b fix/map-marker-positioning
+```
+
+```bash Enhancement
+git checkout -b enhance/driver-availability-ui
+git checkout -b enhance/notification-system
+```
+
+```bash Refactor
+git checkout -b refactor/auth-service
+git checkout -b refactor/ngrx-store-structure
+```
+</CodeGroup>
+
+### Making Changes
+
+<Steps>
+  <Step title="Create a Feature Branch">
+    Always create a new branch from the latest `main`:
+    
+    ```bash
+    git checkout main
+    git pull upstream main
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Make Your Changes">
+    Write clean, well-documented code following our [code style guide](/development/code-style).
+    
+    <Tip>
+      Run `npm run lint` frequently to catch style issues early.
+    </Tip>
+  </Step>
+
+  <Step title="Write Tests">
+    Add unit tests for new features and bug fixes:
+    
+    ```bash
+    npm test
+    ```
+    
+    See our [testing guide](/development/testing) for detailed information.
+  </Step>
+
+  <Step title="Commit Your Changes">
+    Write clear, descriptive commit messages:
+    
+    ```bash
+    git add .
+    git commit -m "feat(trips): add real-time trip matching algorithm"
+    ```
+    
+    <Note>
+      Use conventional commit format: `type(scope): description`
+      
+      **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+    </Note>
+  </Step>
+</Steps>
+
+### Commit Message Format
+
+Follow the conventional commits specification:
+
+```
+type(scope): subject
+
+body (optional)
+
+footer (optional)
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Feature
+feat(auth): implement refresh token rotation
+
+Adds automatic token refresh with rotation support for enhanced
+security. Tokens now refresh 30 seconds before expiration.
+
+Closes #123
+```
+
+```bash Bug Fix
+fix(map): correct driver location marker positioning
+
+Fixes issue where driver markers were offset by ~50m due to
+incorrect coordinate transformation.
+
+Fixes #456
+```
+
+```bash Documentation
+docs(api): update authentication flow diagram
+
+Adds sequence diagram for web and mobile auth flows.
+```
+</CodeGroup>
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Push Your Changes">
+    Push your branch to your fork:
+    
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Create Pull Request">
+    1. Navigate to your fork on GitHub
+    2. Click "Compare & pull request"
+    3. Fill out the PR template with:
+       - Clear description of changes
+       - Related issue numbers
+       - Screenshots (for UI changes)
+       - Testing notes
+  </Step>
+
+  <Step title="PR Requirements">
+    Ensure your PR meets these requirements:
+    
+    - [ ] All tests pass (`npm test`)
+    - [ ] No linting errors (`npm run lint`)
+    - [ ] Code follows style guidelines
+    - [ ] Commits follow conventional format
+    - [ ] Documentation updated (if needed)
+    - [ ] No merge conflicts with `main`
+  </Step>
+
+  <Step title="Code Review">
+    Wait for maintainers to review your PR. Be prepared to:
+    
+    - Answer questions about your implementation
+    - Make requested changes
+    - Discuss alternative approaches
+    
+    <Tip>
+      Reviews typically happen within 2-3 business days.
+    </Tip>
+  </Step>
+</Steps>
+
+## Code Review Guidelines
+
+### For Contributors
+
+**Before Requesting Review:**
+- Self-review your own code first
+- Test your changes thoroughly
+- Update documentation
+- Resolve all linting errors
+- Keep PRs focused and reasonably sized (less than 500 lines when possible)
+
+**During Review:**
+- Respond promptly to feedback
+- Ask questions if feedback is unclear
+- Be open to suggestions
+- Mark conversations as resolved after addressing them
+
+### For Reviewers
+
+**Review Focus Areas:**
+- Code correctness and logic
+- Test coverage and quality
+- Performance implications
+- Security considerations
+- Code style and readability
+- Documentation completeness
+
+**Providing Feedback:**
+- Be constructive and specific
+- Explain the "why" behind suggestions
+- Distinguish between blocking issues and suggestions
+- Approve when ready, even if minor suggestions remain
+
+## Project Structure
+
+Understanding the codebase organization:
+
+```
+src/app/
+├── core/
+│   ├── guards/          # Route guards (auth, etc.)
+│   ├── interceptors/    # HTTP interceptors
+│   ├── models/          # TypeScript interfaces/types
+│   ├── services/        # Core services
+│   │   ├── http/        # API services
+│   │   ├── socket/      # WebSocket services
+│   │   └── ui/          # UI-related services
+│   └── utils/           # Helper functions
+├── features/            # Feature modules
+│   ├── auth/            # Authentication features
+│   ├── tabs/            # Tab pages (home, trips, earnings, map)
+│   └── sidebar/         # Sidebar pages (profile, settings, etc.)
+├── pages/               # Standalone pages
+│   ├── trip/            # Trip-related pages
+│   └── trip-progress/   # Trip progress tracking
+├── shared/              # Shared components/layouts
+│   ├── components/      # Reusable components
+│   └── layouts/         # Layout components
+├── store/               # NgRx state management
+│   ├── auth/            # Auth state (signals)
+│   ├── driver-availability/
+│   ├── sessions/
+│   └── trip/
+└── components/          # Legacy/standalone components
+```
+
+<Note>
+The project uses **NgRx Signals** for state management (not traditional NgRx Store for most features).
+</Note>
+
+## Available Scripts
+
+Common development commands:
+
+<CodeGroup>
+```bash Development
+# Start development server
+npm start
+
+# Build for production
+npm run build
+
+# Watch mode (auto-rebuild)
+npm run watch
+```
+
+```bash Testing & Quality
+# Run unit tests
+npm test
+
+# Run linting
+npm run lint
+```
+
+```bash Angular CLI
+# Generate component
+ng generate component features/my-feature
+
+# Generate service
+ng generate service core/services/http/my-service
+
+# Generate guard
+ng generate guard core/guards/my-guard
+```
+</CodeGroup>
+
+## Development Tips
+
+### Working with NgRx Signals
+
+The project uses NgRx Signals (not traditional reducers/actions):
+
+```typescript
+// Store definition
+export const AuthStore = signalStore(
+  { providedIn: 'root' },
+  withState<AuthState>(initialState),
+  withMethods((store) => ({
+    setAuth(payload: Partial<AuthState>) {
+      patchState(store, payload);
+    },
+  }))
+);
+
+// Facade pattern for business logic
+@Injectable({ providedIn: 'root' })
+export class AuthFacade {
+  private readonly authStore = inject(AuthStore);
+  private readonly authService = inject(AuthService);
+  
+  login(payload: LoginPayload): Observable<User> {
+    // Business logic here
+  }
+}
+```
+
+### Path Aliases
+
+Use the `@/*` path alias for cleaner imports:
+
+```typescript
+// ✅ Good
+import { AuthService } from '@/app/core/services/http/auth.service';
+
+// ❌ Avoid
+import { AuthService } from '../../../core/services/http/auth.service';
+```
+
+### Ionic Components
+
+Prefer standalone Ionic components:
+
+```typescript
+import { 
+  IonContent, 
+  IonButton, 
+  IonCard 
+} from '@ionic/angular/standalone';
+
+@Component({
+  selector: 'app-my-component',
+  standalone: true,
+  imports: [IonContent, IonButton, IonCard],
+  // ...
+})
+```
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Documentation" icon="book" href="/introduction">
+    Read the complete documentation
+  </Card>
+  
+  <Card title="Code Style" icon="code" href="/development/code-style">
+    Learn about coding standards
+  </Card>
+  
+  <Card title="Testing Guide" icon="flask" href="/development/testing">
+    Write effective tests
+  </Card>
+  
+  <Card title="Issues" icon="github" href="https://github.com/YOUR_ORG/rodandoApp-frontend/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>
+
+<Warning>
+**Important Notes:**
+- Never commit sensitive data (API keys, tokens, credentials)
+- Always test on both web and mobile platforms
+- Keep dependencies up to date
+- Follow Angular and Ionic best practices
+</Warning>
+
+## Questions?
+
+If you have questions or need clarification:
+
+1. Check existing documentation
+2. Search closed issues/PRs for similar discussions
+3. Open a discussion on GitHub
+4. Reach out to maintainers
+
+We appreciate your contributions! 🎉

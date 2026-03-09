@@ -1,0 +1,498 @@
+---
+title: Earnings Tracking
+description: Learn how drivers track their earnings, plan expenses, and manage their wallet balance in the Rodando Driver app
+---
+
+The Rodando Driver app provides comprehensive earnings tracking with real-time updates, prepaid plan management, and wallet balance monitoring. Drivers can view their daily, monthly, and yearly earnings along with detailed transaction history.
+
+## Earnings Overview
+
+The earnings dashboard displays aggregated earnings data across multiple time periods:
+
+```typescript
+<div class="earnings-grid">
+  <div class="earn-item">
+    <div class="earn-label">Ganancias totales</div>
+    <div class="earn-value">$710,015</div>
+    <ion-badge color="dark">DÍA</ion-badge>
+  </div>
+  <div class="earn-item">
+    <div class="earn-label">Ganancia en el año</div>
+    <div class="earn-value">$19,350</div>
+    <div class="period-tabs">
+      <ion-chip class="is-active">MES</ion-chip>
+      <ion-chip>AÑO</ion-chip>
+    </div>
+  </div>
+</div>
+```
+
+**Key Metrics:**
+
+<CardGroup cols={2}>
+  <Card title="Total Earnings" icon="dollar-sign">
+    Cumulative earnings for the selected period (day, month, or year).
+  </Card>
+  
+  <Card title="Period Tabs" icon="calendar">
+    Switch between daily, monthly, and yearly views for earnings analysis.
+  </Card>
+  
+  <Card title="Visual Charts" icon="chart-line">
+    SVG-based charts show earnings trends over time for quick insights.
+  </Card>
+  
+  <Card title="Real-Time Updates" icon="rotate">
+    Earnings update automatically as trips are completed.
+  </Card>
+</CardGroup>
+
+## Trip Fare Calculation
+
+Trip fares are calculated based on multiple factors including distance, duration, and waiting time:
+
+### Base Fare Components
+
+```typescript
+interface FareSnapshotDto {
+  currency: string;              // Currency code (e.g., "CUP")
+  surgeMultiplier?: number | null;  // Dynamic pricing multiplier
+  breakdown?: any;               // Detailed fare breakdown
+  distanceKmEst?: number | null; // Estimated distance in km
+  durationMinEst?: number | null; // Estimated duration in minutes
+  estimatedTotal?: number | null; // Base fare estimate
+}
+```
+
+**Calculation Logic:**
+
+```typescript
+// Extract base fare from trip data
+const baseFare =
+  typeof t.fareEstimatedTotal === 'number'
+    ? t.fareEstimatedTotal
+    : typeof t.fareFinalTotal === 'number'
+    ? t.fareFinalTotal
+    : null;
+
+const currency =
+  t.fareFinalCurrency ??
+  t.fareEstimatedCurrency ??
+  'CUP';
+
+this.store.setInitialFare(baseFare, currency);
+```
+
+### Waiting Fees
+
+The app automatically calculates waiting fees when drivers wait at the pickup location:
+
+<Steps>
+  <Step title="Start Waiting Timer">
+    When the driver marks arrival at pickup, the waiting timer begins:
+    
+    ```typescript
+    async markArrivedPickup(): Promise<void> {
+      const arrivedAt = new Date().toISOString();
+      
+      this.store.setArrivedPickup(arrivedAt);
+      this.store.setPhase('arriving');
+      
+      // Start waiting time tracking
+      this.store.startWaiting(arrivedAt);
+      this.startWaitingTimer();
+    }
+    ```
+  </Step>
+
+  <Step title="Track Waiting Time">
+    The timer increments every second:
+    
+    ```typescript
+    private startWaitingTimer() {
+      this.waitingTimerSub = interval(1000).subscribe(() => {
+        const s = this.store.state();
+        if (!s.activeTripId || s.phase !== 'arriving' || !s.arrivedPickupAt) {
+          this.stopWaitingTimer();
+          return;
+        }
+
+        // Increment waiting seconds
+        this.store.tickWaiting(1);
+      });
+    }
+    ```
+  </Step>
+
+  <Step title="Apply Penalty Threshold">
+    After a threshold (5 seconds in demo, configurable in production), a waiting fee is applied:
+    
+    ```typescript
+    const s2 = this.store.state();
+    if (s2.waitingSeconds >= 5 && !s2.waitingPenaltyApplied) {
+      const base = s2.baseFare ?? 0;
+      const extra = Math.max(1, Math.round(base * 0.05)); // 5% or minimum 1
+      const text = `Se aplicó un recargo por espera (${s2.waitingSeconds} s).`;
+
+      this.store.applyWaitingPenalty(extra, text);
+      this.store.setWaitingReason('Espera prolongada en el punto de recogida');
+
+      // Show penalty modal
+      this.presentWaitingPenaltyModal();
+    }
+    ```
+  </Step>
+
+  <Step title="Calculate Final Total">
+    The live fare updates to include the waiting fee:
+    
+    ```typescript
+    applyWaitingPenalty(extra: number, text: string) {
+      this._s.update(s => {
+        const base = s.baseFare ?? 0;
+        const live = base + (extra || 0);
+        return {
+          ...s,
+          liveFare: live,
+          waitingExtraFare: extra,
+          waitingPenaltyApplied: true,
+          waitingPenaltyText: text,
+        };
+      });
+    }
+    ```
+  </Step>
+</Steps>
+
+**Waiting Fee Formula:**
+
+```typescript
+const waitingFee = Math.max(1, Math.round(baseFare * 0.05));
+const finalTotal = baseFare + waitingFee;
+```
+
+<Note>
+**Configurable Threshold:** The 5-second threshold and 5% fee are demo values. Production settings can be configured based on market conditions and regulatory requirements.
+</Note>
+
+### Final Fare Breakdown
+
+When completing a trip, the driver sees a detailed fare breakdown:
+
+```typescript
+// Calculate amounts for confirmation modal
+const base =
+  s.baseFare ??
+  trip?.fareEstimatedTotal ??
+  trip?.fareFinalTotal ??
+  null;
+
+const extra = s.waitingExtraFare ?? 0;
+
+const finalTotal =
+  trip?.fareFinalTotal ??
+  s.liveFare ??
+  (base != null ? base + extra : null);
+
+const cur =
+  s.baseCurrency ??
+  trip?.fareFinalCurrency ??
+  trip?.fareEstimatedCurrency ??
+  'CUP';
+```
+
+**Completion Payload:**
+
+```typescript
+interface CompleteTripPayload {
+  driverId: string;
+  extraFees?: number | null;           // Waiting fees
+  waitingTimeMinutes?: number | null;  // Total waiting time
+  waitingReason?: string | null;       // Reason for charge
+  actualDistanceKm?: number | null;    // Actual distance traveled
+  actualDurationMin?: number | null;   // Actual trip duration
+}
+
+// Convert seconds to minutes (minimum 1 minute)
+const waitingSeconds = s.waitingSeconds ?? 0;
+const waitingMinutes =
+  waitingSeconds > 0 ? Math.max(1, Math.round(waitingSeconds / 60)) : null;
+
+const payload: CompleteTripPayload = {
+  driverId,
+  extraFees: extra || null,
+  waitingTimeMinutes: waitingMinutes,
+  waitingReason: s.waitingReason ?? 'Recargo por espera en el punto de recogida',
+};
+```
+
+## Prepaid Plan Management
+
+Drivers operate on a prepaid plan system where they pay a per-trip fee:
+
+```typescript
+<div class="plan-box">
+  <div class="plan-head">
+    <ion-badge color="success">Activo</ion-badge>
+    <span class="plan-name">Plan Pro</span>
+  </div>
+  <div class="plan-body">
+    <div class="row">
+      <span class="muted">Costo por viaje</span>
+      <strong>$0.75</strong>
+    </div>
+    <div class="row">
+      <span class="muted">Vence en</span>
+      <strong>3 días</strong>
+    </div>
+    <ion-progress-bar value="0.75"></ion-progress-bar>
+    <ion-note class="muted">75% del periodo restante</ion-note>
+  </div>
+  <div class="plan-actions">
+    <ion-button size="small" shape="round">Recargar plan</ion-button>
+    <ion-button size="small" fill="outline" shape="round">Ver planes</ion-button>
+  </div>
+</div>
+```
+
+**Plan Features:**
+
+<Tabs>
+  <Tab title="Plan Status">
+    - **Active/Inactive Badge:** Visual indicator of plan status
+    - **Plan Name:** Tier level (Basic, Pro, Premium)
+    - **Expiration Countdown:** Days remaining on current plan
+    - **Progress Bar:** Visual representation of time remaining
+  </Tab>
+
+  <Tab title="Pricing Model">
+    - **Per-Trip Fee:** Fixed amount deducted from wallet per completed trip
+    - **Plan Duration:** Monthly or custom period subscription
+    - **Auto-Renewal:** Optional automatic plan renewal
+    - **Grace Period:** Buffer time after expiration before service suspension
+  </Tab>
+
+  <Tab title="Plan Actions">
+    - **Recargar Plan:** Add funds to extend current plan
+    - **Ver Planes:** Browse and switch to different plan tiers
+    - **Payment History:** View all plan recharge transactions
+  </Tab>
+</Tabs>
+
+## Wallet Balance
+
+The wallet system manages the driver's available balance for trip fees:
+
+```typescript
+<div class="wallet-box">
+  <div class="wallet-head">
+    <span class="muted">Saldo disponible</span>
+    <h2 class="wallet-balance">$ 12.40</h2>
+    <ion-badge color="warning">Autonomía: 2 viajes</ion-badge>
+  </div>
+  <div class="wallet-movements">
+    <ion-list lines="none">
+      <ion-item>
+        <ion-icon name="arrow-down-circle-outline" slot="start"></ion-icon>
+        <ion-label>
+          <h3>Recarga efectiva</h3>
+          <p class="muted">hoy · 10:24</p>
+        </ion-label>
+        <ion-note slot="end" color="success">+ $5.00</ion-note>
+      </ion-item>
+      <ion-item>
+        <ion-icon name="car-outline" slot="start"></ion-icon>
+        <ion-label>
+          <h3>Viaje #8472</h3>
+          <p class="muted">ayer · 19:05</p>
+        </ion-label>
+        <ion-note slot="end" color="medium">- $2.50</ion-note>
+      </ion-item>
+    </ion-list>
+  </div>
+</div>
+```
+
+**Wallet Features:**
+
+<CardGroup cols={2}>
+  <Card title="Available Balance" icon="wallet">
+    Current funds available to pay for trip fees.
+  </Card>
+  
+  <Card title="Trip Autonomy" icon="gas-pump">
+    Estimated number of trips driver can complete with current balance.
+  </Card>
+  
+  <Card title="Transaction History" icon="list">
+    Detailed log of all deposits and trip deductions.
+  </Card>
+  
+  <Card title="Low Balance Alerts" icon="bell">
+    Warnings when balance is insufficient for minimum trips.
+  </Card>
+</CardGroup>
+
+### Transaction Types
+
+<Tabs>
+  <Tab title="Deposits">
+    ```typescript
+    {
+      type: 'deposit',
+      amount: 5.00,
+      method: 'cash' | 'card' | 'bank_transfer',
+      timestamp: '2026-03-09T10:24:00Z',
+      description: 'Recarga efectiva'
+    }
+    ```
+    
+    **Deposit Methods:**
+    - Cash at authorized locations
+    - Debit/credit card
+    - Bank transfer
+    - Digital wallet integration
+  </Tab>
+
+  <Tab title="Trip Deductions">
+    ```typescript
+    {
+      type: 'trip_fee',
+      tripId: 'trip_8472',
+      amount: -2.50,
+      timestamp: '2026-03-08T19:05:00Z',
+      description: 'Viaje #8472'
+    }
+    ```
+    
+    **Deduction Timing:**
+    - Deducted when trip is marked as completed
+    - Based on current plan's per-trip rate
+    - Includes any applicable taxes or fees
+  </Tab>
+
+  <Tab title="Refunds">
+    ```typescript
+    {
+      type: 'refund',
+      tripId: 'trip_8455',
+      amount: 2.50,
+      reason: 'Trip cancelled by passenger',
+      timestamp: '2026-03-07T16:30:00Z'
+    }
+    ```
+    
+    **Refund Scenarios:**
+    - Passenger cancels after driver charged
+    - System error in fee calculation
+    - Promotional credits
+    - Customer service adjustments
+  </Tab>
+</Tabs>
+
+## Low Balance Warnings
+
+The app proactively warns drivers when balance is running low:
+
+```typescript
+<ion-card class="inline-banner warning" color="warning">
+  <ion-card-content>
+    <ion-icon name="alert-outline"></ion-icon>
+    <span>Tu plan vence pronto. Renueva para no quedarte sin cobertura.</span>
+  </ion-card-content>
+</ion-card>
+```
+
+**Warning Thresholds:**
+
+| Balance | Trips Remaining | Warning Level | Action |
+|---------|----------------|---------------|--------|
+| > $10 | > 4 | None | Normal operation |
+| $5-10 | 2-4 | Info | Suggest recharge |
+| $2.50-5 | 1-2 | Warning | Prompt recharge |
+| < $2.50 | 0-1 | Critical | Block new trips |
+
+## Earnings History
+
+The earnings chart provides visual insights into earnings trends:
+
+```typescript
+<div class="chart-wrap">
+  <svg viewBox="0 0 100 28" preserveAspectRatio="none" class="chart-svg">
+    <polyline 
+      fill="currentColor" 
+      fill-opacity="0.25" 
+      stroke="currentColor" 
+      stroke-width="1" 
+      points="0,20 10,18 20,22 30,14 40,16 50,12 60,18 70,10 80,12 90,8 100,16" 
+    />
+  </svg>
+  <div class="chart-axis">
+    <span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span>
+  </div>
+</div>
+```
+
+<Info>
+**Chart Technology:** Uses inline SVG for lightweight, scalable charts without external dependencies. Can be replaced with Chart.js or ApexCharts for more advanced visualizations.
+</Info>
+
+## Earnings Component
+
+The earnings component integrates authentication for secure logout:
+
+```typescript
+export default class EarningsComponent implements OnInit {
+  private auth = inject(AuthFacade);
+  private toast = inject(ToastController);
+
+  private getSessionType(): 'web' | 'mobile' {
+    try {
+      const v = localStorage.getItem('auth.sessionType')?.trim().toLowerCase();
+      return (v === 'mobile') ? 'mobile' : 'web';
+    } catch { return 'web'; }
+  }
+
+  async onLogout() {
+    const sessionType = this.getSessionType();
+    const obs = sessionType === 'mobile'
+      ? this.auth.logoutMobileFlow()
+      : this.auth.logoutWebFlow();
+
+    const t = await this.toast.create({ 
+      message: 'Cerrando sesión…', 
+      duration: 1200, 
+      position: 'top' 
+    });
+    await t.present();
+
+    obs.pipe(take(1)).subscribe({ next: () => {}, error: () => {} });
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Real-Time Updates" icon="sync">
+    Use WebSocket events to update earnings immediately when trips complete.
+  </Card>
+  
+  <Card title="Offline Caching" icon="database">
+    Cache recent transactions locally for offline viewing and faster load times.
+  </Card>
+  
+  <Card title="Transparent Fees" icon="receipt">
+    Show complete fare breakdown including base, waiting fees, and any surcharges.
+  </Card>
+  
+  <Card title="Balance Monitoring" icon="gauge">
+    Proactively notify drivers before balance becomes critically low.
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+- [Trip Management](/features/trip-management) - How trips generate earnings
+- [Real-Time Updates](/features/real-time-updates) - Live earnings notifications
+- [Authentication](/features/authentication) - Secure access to earnings data

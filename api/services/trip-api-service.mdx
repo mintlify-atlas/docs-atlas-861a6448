@@ -1,0 +1,288 @@
+---
+title: TripApiService
+description: API service for trip operations including assignment, status updates, and completion
+icon: car
+---
+
+## Overview
+
+The `TripApiService` provides HTTP methods for all trip-related operations throughout the driver's journey, from accepting assignments to completing trips.
+
+**Location**: `src/app/core/services/http/trip-api.service.ts`
+
+## Public Methods
+
+### getById()
+
+Retrieves detailed information about a specific trip.
+
+<ParamField path="tripId" type="string" required>
+  The unique identifier of the trip
+</ParamField>
+
+**Returns**: `Observable<TripDto>`
+
+```typescript
+this.tripApiService.getById('trip_123456').subscribe({
+  next: (trip) => {
+    console.log('Trip details:', trip);
+    this.displayOrigin = trip.origin.label;
+    this.displayDestination = trip.destination.label;
+  }
+});
+```
+
+### acceptAssignment()
+
+Accepts a trip assignment offer before it expires.
+
+<ParamField path="assignmentId" type="string" required>
+  The unique identifier of the trip assignment
+</ParamField>
+
+**Returns**: `Observable<TripDto>`
+
+```typescript
+this.tripApiService.acceptAssignment(assignmentId).subscribe({
+  next: (trip) => {
+    console.log('Assignment accepted:', trip);
+    // Navigate to active trip view
+    this.router.navigate(['/trips/active']);
+  },
+  error: (error) => {
+    if (error.code === 'ASSIGNMENT_EXPIRED') {
+      this.showMessage('This trip offer has expired');
+    }
+  }
+});
+```
+
+### declineAssignment()
+
+Declines a trip assignment offer.
+
+<ParamField path="assignmentId" type="string" required>
+  The unique identifier of the trip assignment
+</ParamField>
+
+**Returns**: `Observable<void>`
+
+```typescript
+this.tripApiService.declineAssignment(assignmentId).subscribe({
+  next: () => {
+    console.log('Assignment declined');
+    // Return to home screen
+  }
+});
+```
+
+### markArrivedPickup()
+
+Marks that the driver has arrived at the pickup location.
+
+<ParamField path="tripId" type="string" required>
+  The unique identifier of the trip
+</ParamField>
+
+<ParamField path="driverId" type="string" required>
+  The unique identifier of the driver
+</ParamField>
+
+**Returns**: `Observable<TripDto>`
+
+**Response Fields**:
+
+<ResponseField name="arrivedPickupAt" type="string">
+  ISO 8601 timestamp when driver arrived at pickup
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Updated trip status (should be 'ARRIVING' or 'PICKUP_ARRIVED')
+</ResponseField>
+
+```typescript
+this.tripApiService.markArrivedPickup(tripId, driverId).subscribe({
+  next: (trip) => {
+    console.log('Marked as arrived at:', trip.arrivedPickupAt);
+    // Start waiting timer
+    this.startWaitingTimer(trip.arrivedPickupAt);
+  }
+});
+```
+
+### startTrip()
+
+Starts the trip after picking up the passenger.
+
+<ParamField path="tripId" type="string" required>
+  The unique identifier of the trip
+</ParamField>
+
+<ParamField path="driverId" type="string" required>
+  The unique identifier of the driver
+</ParamField>
+
+**Returns**: `Observable<TripDto>`
+
+**Response Fields**:
+
+<ResponseField name="startedAt" type="string">
+  ISO 8601 timestamp when trip started
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Updated trip status (should be 'IN_PROGRESS')
+</ResponseField>
+
+```typescript
+this.tripApiService.startTrip(tripId, driverId).subscribe({
+  next: (trip) => {
+    console.log('Trip started at:', trip.startedAt);
+    // Navigate to in-progress trip view
+  }
+});
+```
+
+### completeTrip()
+
+Completes the trip and finalizes the fare calculation.
+
+<ParamField path="tripId" type="string" required>
+  The unique identifier of the trip
+</ParamField>
+
+<ParamField path="payload" type="CompleteTripPayload" required>
+  Trip completion details
+  
+  <Expandable title="CompleteTripPayload Properties">
+    <ParamField path="driverId" type="string" required>
+      The driver completing the trip
+    </ParamField>
+    <ParamField path="extraFees" type="number">
+      Additional fees (e.g., waiting charges)
+    </ParamField>
+    <ParamField path="waitingTimeMinutes" type="number">
+      Total waiting time in minutes
+    </ParamField>
+    <ParamField path="waitingReason" type="string">
+      Reason for waiting charges
+    </ParamField>
+    <ParamField path="actualDistanceKm" type="number">
+      Actual distance traveled in kilometers
+    </ParamField>
+    <ParamField path="actualDurationMin" type="number">
+      Actual trip duration in minutes
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns**: `Observable<TripDto>`
+
+**Example**:
+
+```typescript
+const payload: CompleteTripPayload = {
+  driverId: 'driver_123',
+  extraFees: 5.0,
+  waitingTimeMinutes: 8,
+  waitingReason: 'Passenger delayed at pickup',
+  actualDistanceKm: 12.5,
+  actualDurationMin: 25
+};
+
+this.tripApiService.completeTrip(tripId, payload).subscribe({
+  next: (trip) => {
+    console.log('Trip completed:', trip);
+    console.log('Final fare:', trip.fareFinalTotal, trip.fareFinalCurrency);
+    // Show completion summary
+  }
+});
+```
+
+## Response Types
+
+### TripDto
+
+Complete trip object returned by most endpoints:
+
+```typescript
+interface TripDto {
+  id: string;
+  status: string;
+  origin: TripStopDto;
+  destination: TripStopDto;
+  intermediateStops?: TripStopDto[];
+  passenger?: {
+    id: string;
+    name: string;
+    phoneMasked: string;
+    photoUrl?: string;
+  };
+  driver?: {
+    id: string;
+    name: string;
+    phoneMasked: string;
+    photoUrl?: string;
+  };
+  driverId?: string;
+  fareEstimatedTotal?: number;
+  fareEstimatedCurrency?: string;
+  fareFinalTotal?: number;
+  fareFinalCurrency?: string;
+  paymentMode: string;
+  requestedAt: string;
+  assignedAt?: string;
+  arrivedPickupAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+}
+```
+
+See [Trip Models](/api/models/trip-models) for complete type definitions.
+
+## Error Handling
+
+<Warning>
+All trip operations may fail with specific error codes. Always handle these appropriately:
+</Warning>
+
+```typescript
+this.tripApiService.acceptAssignment(assignmentId).subscribe({
+  error: (error: ApiError) => {
+    switch (error.code) {
+      case 'ASSIGNMENT_EXPIRED':
+        this.showError('This trip offer has expired');
+        break;
+      case 'ASSIGNMENT_ALREADY_TAKEN':
+        this.showError('Another driver accepted this trip');
+        break;
+      case 'DRIVER_NOT_AVAILABLE':
+        this.showError('You must be online to accept trips');
+        break;
+      default:
+        this.showError(error.message || 'Failed to accept trip');
+    }
+  }
+});
+```
+
+## Best Practices
+
+<Tip>
+**Always refresh trip data** after status changes to ensure UI reflects the latest state.
+</Tip>
+
+<Note>
+**Waiting fees**: Track waiting time from `arrivedPickupAt` to `startedAt` and apply charges according to your business rules.
+</Note>
+
+<Tip>
+**Offline support**: Consider queuing trip updates when offline and syncing when connection is restored.
+</Tip>
+
+## Related Documentation
+
+- [Trip Management](/features/trip-management)
+- [Trip Facade](/api/state/trip-facade)
+- [Trip Models](/api/models/trip-models)

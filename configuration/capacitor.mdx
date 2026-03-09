@@ -1,0 +1,678 @@
+---
+title: 'Capacitor Configuration'
+description: 'Configure Capacitor for building native Android and iOS applications'
+icon: 'mobile-screen-button'
+---
+
+## Overview
+
+Capacitor is the native runtime that powers Rodando Driver on Android and iOS devices. It provides a bridge between your Ionic/Angular web application and native platform APIs, enabling features like camera access, geolocation, push notifications, and more.
+
+## Current Configuration
+
+The application's Capacitor configuration is defined in `capacitor.config.ts`:
+
+```typescript capacitor.config.ts
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'io.ionic.starter',
+  appName: 'rodandoApp-frontend',
+  webDir: 'www'
+};
+
+export default config;
+```
+
+<Warning>
+The default `appId` (`io.ionic.starter`) should be changed to a unique identifier for your application before building for production.
+</Warning>
+
+## Configuration Properties
+
+### Required Properties
+
+| Property | Type | Current Value | Description |
+|----------|------|---------------|-------------|
+| `appId` | `string` | `'io.ionic.starter'` | Unique identifier for your app (reverse domain notation) |
+| `appName` | `string` | `'rodandoApp-frontend'` | Display name of your application |
+| `webDir` | `string` | `'www'` | Directory containing the built web assets |
+
+### Recommended Configuration
+
+Update the configuration for production deployment:
+
+```typescript capacitor.config.ts
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.rodando.driver',              // Change to your domain
+  appName: 'Rodando Driver',                 // User-facing app name
+  webDir: 'www',
+  
+  // Platform-specific configurations
+  android: {
+    buildOptions: {
+      keystorePath: 'path/to/keystore.jks',
+      keystoreAlias: 'your-alias'
+    }
+  },
+  
+  ios: {
+    contentInset: 'automatic',
+    scheme: 'App'
+  },
+  
+  // Server configuration for development
+  server: {
+    // Uncomment for live reload during development
+    // url: 'http://192.168.1.100:8100',
+    // cleartext: true
+  },
+  
+  // Plugin configurations
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: '#FFFFFF'
+    },
+    Keyboard: {
+      resize: 'body',
+      style: 'dark'
+    }
+  }
+};
+
+export default config;
+```
+
+## Installed Capacitor Plugins
+
+The application uses the following Capacitor plugins (from `package.json`):
+
+```json package.json
+{
+  "dependencies": {
+    "@capacitor/android": "7.4.2",
+    "@capacitor/app": "7.0.1",
+    "@capacitor/core": "7.4.2",
+    "@capacitor/haptics": "7.0.1",
+    "@capacitor/keyboard": "7.0.1",
+    "@capacitor/preferences": "^7.0.2",
+    "@capacitor/status-bar": "7.0.1",
+    "capacitor-secure-storage-plugin": "^0.11.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.4.2"
+  }
+}
+```
+
+### Plugin Reference
+
+| Plugin | Version | Purpose |
+|--------|---------|----------|
+| `@capacitor/app` | 7.0.1 | App lifecycle events, deep linking, app state |
+| `@capacitor/haptics` | 7.0.1 | Haptic feedback (vibration) |
+| `@capacitor/keyboard` | 7.0.1 | Keyboard appearance and behavior |
+| `@capacitor/preferences` | 7.0.2 | Local data storage (key-value pairs) |
+| `@capacitor/status-bar` | 7.0.1 | Status bar styling and visibility |
+| `capacitor-secure-storage-plugin` | 0.11.0 | Secure credential storage |
+
+## Initial Setup
+
+<Steps>
+  <Step title="Install Capacitor">
+    Capacitor is already installed. Verify installation:
+    
+    ```bash
+    npx cap --version
+    ```
+    
+    Expected output: `7.4.2` or similar
+  </Step>
+
+  <Step title="Update App Configuration">
+    Edit `capacitor.config.ts` and update the `appId`:
+    
+    ```typescript
+    const config: CapacitorConfig = {
+      appId: 'com.yourcompany.rodando.driver', // Use your domain
+      appName: 'Rodando Driver',
+      webDir: 'www'
+    };
+    ```
+    
+    <Note>
+    The `appId` must be unique and should follow reverse domain notation (e.g., `com.company.app`).
+    </Note>
+  </Step>
+
+  <Step title="Build Web Assets">
+    Before adding platforms, build your Angular application:
+    
+    ```bash
+    npm run build
+    ```
+    
+    This creates the `www` directory with compiled assets.
+  </Step>
+
+  <Step title="Add Platform(s)">
+    Add Android and/or iOS platforms:
+    
+    <Tabs>
+      <Tab title="Android">
+        ```bash
+        npx cap add android
+        ```
+        
+        This creates an `android/` directory with a native Android project.
+      </Tab>
+      
+      <Tab title="iOS">
+        ```bash
+        npx cap add ios
+        ```
+        
+        This creates an `ios/` directory with a native iOS project.
+        
+        <Note>
+        iOS development requires macOS with Xcode installed.
+        </Note>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Sync Project">
+    Copy web assets and Capacitor configuration to native projects:
+    
+    ```bash
+    npx cap sync
+    ```
+    
+    Run this command whenever you:
+    - Change `capacitor.config.ts`
+    - Install/update Capacitor plugins
+    - Build new web assets
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Build and Sync
+
+After making changes to your web code:
+
+<CodeGroup>
+```bash Development Build
+# Build Angular app
+npm run build
+
+# Sync to native projects
+npx cap sync
+```
+
+```bash Production Build
+# Build for production
+npm run build --configuration=production
+
+# Sync to native projects
+npx cap sync
+```
+</CodeGroup>
+
+### Opening Native IDEs
+
+Open native projects for building and debugging:
+
+<Tabs>
+  <Tab title="Android Studio">
+    ```bash
+    npx cap open android
+    ```
+    
+    This opens the `android/` project in Android Studio.
+    
+    From Android Studio:
+    1. Wait for Gradle sync to complete
+    2. Select a device/emulator
+    3. Click Run ▶️
+  </Tab>
+  
+  <Tab title="Xcode">
+    ```bash
+    npx cap open ios
+    ```
+    
+    This opens the `ios/` project in Xcode.
+    
+    From Xcode:
+    1. Select a target device/simulator
+    2. Click Run ▶️
+    
+    <Note>
+    Requires macOS with Xcode installed.
+    </Note>
+  </Tab>
+</Tabs>
+
+### Live Reload (Development)
+
+Enable live reload for faster development:
+
+<Steps>
+  <Step title="Start Development Server">
+    ```bash
+    npm start
+    ```
+    
+    Note the IP address (e.g., `http://192.168.1.100:4200`)
+  </Step>
+
+  <Step title="Update Capacitor Config">
+    ```typescript capacitor.config.ts
+    const config: CapacitorConfig = {
+      // ...
+      server: {
+        url: 'http://192.168.1.100:4200', // Your local IP
+        cleartext: true
+      }
+    };
+    ```
+  </Step>
+
+  <Step title="Sync and Run">
+    ```bash
+    npx cap sync
+    npx cap run android # or ios
+    ```
+  </Step>
+
+  <Step title="Disable for Production">
+    <Warning>
+    Always comment out or remove the `server` configuration before building for production!
+    </Warning>
+  </Step>
+</Steps>
+
+## Platform-Specific Configuration
+
+### Android Configuration
+
+#### Update Package Name
+
+Edit `android/app/build.gradle`:
+
+```gradle android/app/build.gradle
+android {
+    namespace "com.yourcompany.rodando.driver"
+    defaultConfig {
+        applicationId "com.yourcompany.rodando.driver"
+        // ...
+    }
+}
+```
+
+#### Permissions
+
+Add required permissions in `android/app/src/main/AndroidManifest.xml`:
+
+```xml AndroidManifest.xml
+<manifest>
+    <!-- Location permissions for driver tracking -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- Network permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Camera permission (if needed) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- Notification permission (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+</manifest>
+```
+
+#### Signing Configuration
+
+For release builds, configure signing in `capacitor.config.ts`:
+
+```typescript
+android: {
+  buildOptions: {
+    keystorePath: 'release.keystore',
+    keystorePassword: process.env.KEYSTORE_PASSWORD,
+    keystoreAlias: 'rodando-driver',
+    keystoreAliasPassword: process.env.KEY_PASSWORD
+  }
+}
+```
+
+### iOS Configuration
+
+#### Update Bundle Identifier
+
+Open Xcode and:
+1. Select your project in the navigator
+2. Select the target
+3. Go to **Signing & Capabilities**
+4. Update **Bundle Identifier** to `com.yourcompany.rodando.driver`
+
+#### Permissions (Info.plist)
+
+Add permission descriptions in `ios/App/App/Info.plist`:
+
+```xml Info.plist
+<dict>
+    <!-- Location permissions -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Rodando Driver needs your location to show nearby ride requests</string>
+    
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Rodando Driver needs background location to track active rides</string>
+    
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Rodando Driver uses location in the background for ride tracking</string>
+    
+    <!-- Camera permission -->
+    <key>NSCameraUsageDescription</key>
+    <string>Rodando Driver needs camera access for profile photos</string>
+    
+    <!-- Photo library -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Rodando Driver needs access to save and upload photos</string>
+</dict>
+```
+
+## Plugin Configuration
+
+Configure installed plugins in `capacitor.config.ts`:
+
+```typescript capacitor.config.ts
+const config: CapacitorConfig = {
+  // ...
+  plugins: {
+    // Status Bar Configuration
+    StatusBar: {
+      style: 'dark', // 'light' or 'dark'
+      backgroundColor: '#FFFFFF',
+      overlaysWebView: false
+    },
+    
+    // Keyboard Configuration
+    Keyboard: {
+      resize: 'body',     // 'native', 'body', 'ionic', or 'none'
+      style: 'dark',      // 'light' or 'dark'
+      resizeOnFullScreen: true
+    },
+    
+    // Splash Screen Configuration
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: '#FFFFFF',
+      showSpinner: false,
+      androidSpinnerStyle: 'small',
+      iosSpinnerStyle: 'small',
+      spinnerColor: '#999999',
+      splashFullScreen: false,
+      splashImmersive: false
+    },
+    
+    // App Configuration
+    App: {
+      handleRedirects: true
+    },
+    
+    // Preferences (Storage) Configuration
+    Preferences: {
+      group: 'com.rodando.driver'
+    }
+  }
+};
+```
+
+## Using Capacitor Plugins
+
+### Example: Status Bar
+
+```typescript src/app/app.component.ts
+import { Component, OnInit } from '@angular/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Platform } from '@ionic/angular';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: 'app.component.html'
+})
+export class AppComponent implements OnInit {
+  constructor(private platform: Platform) {}
+  
+  async ngOnInit() {
+    await this.platform.ready();
+    
+    if (this.platform.is('capacitor')) {
+      // Configure status bar
+      await StatusBar.setStyle({ style: Style.Dark });
+      await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
+    }
+  }
+}
+```
+
+### Example: Haptics
+
+```typescript
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
+// Trigger haptic feedback
+await Haptics.impact({ style: ImpactStyle.Light });
+
+// Notification haptics
+await Haptics.notification({ type: 'success' });
+```
+
+### Example: Preferences (Storage)
+
+```typescript
+import { Preferences } from '@capacitor/preferences';
+
+// Save data
+await Preferences.set({
+  key: 'driverId',
+  value: '12345'
+});
+
+// Retrieve data
+const { value } = await Preferences.get({ key: 'driverId' });
+console.log('Driver ID:', value);
+
+// Remove data
+await Preferences.remove({ key: 'driverId' });
+
+// Clear all data
+await Preferences.clear();
+```
+
+### Example: Secure Storage
+
+```typescript
+import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
+
+// Store secure data (auth tokens, credentials)
+await SecureStoragePlugin.set({
+  key: 'authToken',
+  value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+});
+
+// Retrieve secure data
+const { value } = await SecureStoragePlugin.get({ key: 'authToken' });
+
+// Remove secure data
+await SecureStoragePlugin.remove({ key: 'authToken' });
+```
+
+## Building for Production
+
+### Android Release Build
+
+<Steps>
+  <Step title="Create Keystore">
+    Generate a release keystore (one-time setup):
+    
+    ```bash
+    keytool -genkey -v -keystore release.keystore \
+      -alias rodando-driver \
+      -keyalg RSA -keysize 2048 -validity 10000
+    ```
+    
+    <Warning>
+    Store the keystore file and passwords securely! You cannot update your app without them.
+    </Warning>
+  </Step>
+
+  <Step title="Build Web Assets">
+    ```bash
+    npm run build --configuration=production
+    npx cap sync android
+    ```
+  </Step>
+
+  <Step title="Build APK/AAB">
+    Open Android Studio:
+    
+    ```bash
+    npx cap open android
+    ```
+    
+    Then:
+    1. **Build** → **Generate Signed Bundle / APK**
+    2. Select **Android App Bundle** (AAB) for Google Play
+    3. Choose your keystore and enter credentials
+    4. Select **release** build variant
+    5. Click **Finish**
+    
+    The signed AAB will be in `android/app/release/`
+  </Step>
+</Steps>
+
+### iOS Release Build
+
+<Steps>
+  <Step title="Apple Developer Account">
+    Ensure you have:
+    - Active Apple Developer account ($99/year)
+    - Certificates and provisioning profiles configured
+  </Step>
+
+  <Step title="Build Web Assets">
+    ```bash
+    npm run build --configuration=production
+    npx cap sync ios
+    ```
+  </Step>
+
+  <Step title="Configure Signing">
+    Open Xcode:
+    
+    ```bash
+    npx cap open ios
+    ```
+    
+    1. Select project → Target → **Signing & Capabilities**
+    2. Enable **Automatically manage signing**
+    3. Select your **Team**
+    4. Verify bundle identifier matches App Store Connect
+  </Step>
+
+  <Step title="Archive and Upload">
+    In Xcode:
+    1. Select **Any iOS Device** as target
+    2. **Product** → **Archive**
+    3. When complete, click **Distribute App**
+    4. Follow wizard to upload to App Store Connect
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Plugin Not Found
+
+**Error: "Plugin [PluginName] not found"**
+
+Solutions:
+```bash
+# Reinstall plugins
+npm install
+
+# Sync with native projects
+npx cap sync
+
+# If still failing, rebuild native projects
+npx cap sync --force
+```
+
+### Build Failing After Plugin Update
+
+```bash
+# Clean and rebuild
+rm -rf node_modules package-lock.json
+npm install
+npx cap sync
+
+# For Android
+cd android && ./gradlew clean && cd ..
+
+# For iOS
+cd ios && rm -rf Pods Podfile.lock && pod install && cd ..
+```
+
+### Live Reload Not Working
+
+1. Ensure device/emulator is on same network as development machine
+2. Verify `server.url` uses your local IP (not `localhost`)
+3. Check firewall isn't blocking port 4200
+4. Disable VPN if active
+
+### Android Build Errors
+
+**Gradle build failed:**
+
+1. Update Android Studio and Gradle
+2. Check Java version (JDK 17 recommended)
+3. Clean gradle cache:
+   ```bash
+   cd android
+   ./gradlew clean
+   ```
+
+### iOS Pod Installation Issues
+
+```bash
+cd ios/App
+rm -rf Pods Podfile.lock
+pod repo update
+pod install
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Config" icon="gear" href="/configuration/environment">
+    Configure environment variables for different builds
+  </Card>
+  <Card title="Google Maps Setup" icon="map" href="/configuration/google-maps">
+    Set up Google Maps API for navigation
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [Capacitor Documentation](https://capacitorjs.com/docs)
+- [Capacitor Plugins](https://capacitorjs.com/docs/plugins)
+- [Ionic Framework](https://ionicframework.com/docs)
+- [Android Studio Guide](https://developer.android.com/studio)
+- [Xcode Documentation](https://developer.apple.com/xcode/)

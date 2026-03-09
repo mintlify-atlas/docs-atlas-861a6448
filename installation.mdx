@@ -1,0 +1,730 @@
+---
+title: 'Installation'
+description: 'Complete setup guide for Rodando Driver - from prerequisites to running on mobile devices'
+---
+
+# Installation Guide
+
+This guide covers everything you need to set up the Rodando Driver application for development and production deployment.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed on your system:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    **Version:** 18.x or higher
+    
+    [Download Node.js](https://nodejs.org/)
+  </Card>
+  
+  <Card title="npm" icon="npm">
+    **Version:** 9.x or higher
+    
+    Comes bundled with Node.js
+  </Card>
+  
+  <Card title="Angular CLI" icon="angular">
+    **Version:** 18.2.0
+    
+    ```bash
+    npm install -g @angular/cli@18.2.0
+    ```
+  </Card>
+  
+  <Card title="Ionic CLI" icon="mobile">
+    **Version:** Latest
+    
+    ```bash
+    npm install -g @ionic/angular-toolkit
+    ```
+  </Card>
+</CardGroup>
+
+### Mobile Development Prerequisites
+
+For building mobile apps, you'll also need:
+
+<Tabs>
+  <Tab title="Android">
+    - **Android Studio** (latest stable version)
+    - **Java Development Kit (JDK)** 17 or higher
+    - **Android SDK** (API level 33 or higher)
+    - **Gradle** (comes with Android Studio)
+    
+    **Environment Variables:**
+    ```bash
+    export ANDROID_HOME=$HOME/Android/Sdk
+    export PATH=$PATH:$ANDROID_HOME/emulator
+    export PATH=$PATH:$ANDROID_HOME/platform-tools
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    - **macOS** (required for iOS development)
+    - **Xcode** (latest stable version from App Store)
+    - **CocoaPods** (for dependency management)
+    
+    ```bash
+    sudo gem install cocoapods
+    ```
+    
+    <Warning>
+      iOS development requires a Mac with Xcode. You cannot build iOS apps on Windows or Linux.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Step 1: Clone or Download the Project
+
+```bash
+git clone <repository-url> rodando-driver
+cd rodando-driver
+```
+
+The project structure:
+
+```
+rodando-driver/
+├── src/
+│   ├── app/
+│   │   ├── core/
+│   │   │   ├── services/      # API services, WebSocket, storage
+│   │   │   ├── guards/        # Auth guards
+│   │   │   └── models/        # TypeScript interfaces
+│   │   ├── features/
+│   │   │   ├── auth/          # Login, signup flows
+│   │   │   ├── tabs/          # Home, map, trips, earnings
+│   │   │   └── sidebar/       # Profile, settings, wallet
+│   │   ├── store/             # NgRx state management
+│   │   └── components/        # Reusable UI components
+│   ├── environments/          # Environment configurations
+│   └── assets/                # Images, icons, fonts
+├── capacitor.config.ts        # Capacitor configuration
+├── angular.json               # Angular workspace config
+├── package.json               # Dependencies
+└── tsconfig.json              # TypeScript configuration
+```
+
+## Step 2: Install Dependencies
+
+Install all required npm packages:
+
+```bash
+npm install
+```
+
+This will install:
+
+<AccordionGroup>
+  <Accordion title="Core Framework Dependencies">
+    ```json
+    {
+      "@angular/core": "^18.2.0",
+      "@angular/common": "^18.2.0",
+      "@angular/router": "^18.2.0",
+      "@ionic/angular": "^8.4.3",
+      "@capacitor/core": "7.4.2"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Mobile Platform Packages">
+    ```json
+    {
+      "@capacitor/android": "7.4.2",
+      "@capacitor/app": "7.0.1",
+      "@capacitor/haptics": "7.0.1",
+      "@capacitor/keyboard": "7.0.1",
+      "@capacitor/preferences": "^7.0.2",
+      "@capacitor/status-bar": "7.0.1"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="State Management">
+    ```json
+    {
+      "@ngrx/store": "^18.1.1",
+      "@ngrx/effects": "^18.1.1",
+      "@ngrx/signals": "^18.1.1"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Maps and Geolocation">
+    ```json
+    {
+      "@angular/google-maps": "^18.2.14",
+      "mapbox-gl": "^3.15.0",
+      "@turf/turf": "^7.2.0"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Real-time Communication">
+    ```json
+    {
+      "socket.io-client": "^4.8.1"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Security">
+    ```json
+    {
+      "capacitor-secure-storage-plugin": "^0.11.0"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Step 3: Environment Configuration
+
+Configure your environment variables for development and production.
+
+### Development Environment
+
+Edit `src/environments/environment.ts`:
+
+```typescript
+export const environment = {
+  production: false,
+  
+  // API Configuration
+  apiUrl: 'http://localhost:3000/api',
+  wsBase: 'ws://localhost:3000',
+  
+  // App Identity
+  appAudience: 'driver_app',
+  expectedUserType: 'driver',
+  
+  // Maps Configuration
+  googleMapsApiKey: 'YOUR_GOOGLE_MAPS_API_KEY',
+  mapbox: {
+    accessToken: 'YOUR_MAPBOX_ACCESS_TOKEN'
+  },
+  
+  // Debugging
+  debug: true,
+  debugTags: ['DA', 'HTTP', 'LOC']
+};
+```
+
+### Production Environment
+
+Edit `src/environments/environment.prod.ts`:
+
+```typescript
+export const environment = {
+  production: true,
+  
+  apiUrl: 'https://api.rodando.app/api',
+  wsBase: 'wss://api.rodando.app',
+  
+  appAudience: 'driver_app',
+  expectedUserType: 'driver',
+  
+  googleMapsApiKey: 'YOUR_PRODUCTION_GOOGLE_MAPS_API_KEY',
+  mapbox: {
+    accessToken: 'YOUR_PRODUCTION_MAPBOX_TOKEN'
+  },
+  
+  debug: false,
+  debugTags: []
+};
+```
+
+<Warning>
+  **Never commit API keys to version control!** Use environment variables or a secrets management service in production.
+</Warning>
+
+### Required API Keys
+
+<Steps>
+  <Step title="Get a Mapbox Access Token">
+    1. Sign up at [mapbox.com](https://www.mapbox.com/)
+    2. Navigate to Account → Access Tokens
+    3. Create a new token with `styles:read` and `fonts:read` scopes
+    4. Copy the token to `environment.mapbox.accessToken`
+  </Step>
+  
+  <Step title="Get a Google Maps API Key">
+    1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+    2. Enable **Maps JavaScript API** and **Places API**
+    3. Create credentials → API Key
+    4. Add the key with `&libraries=places` suffix
+    
+    ```typescript
+    googleMapsApiKey: 'AIzaSyB...&libraries=places'
+    ```
+  </Step>
+</Steps>
+
+## Step 4: Run the Application
+
+### Development Server
+
+Start the development server with live reload:
+
+```bash
+ng serve
+```
+
+Or using Ionic CLI for device preview:
+
+```bash
+ionic serve
+```
+
+The app will be available at:
+- **Angular:** `http://localhost:4200`
+- **Ionic:** `http://localhost:8100`
+
+<Note>
+  The Ionic server provides additional features like device emulation and live reload for mobile testing.
+</Note>
+
+### Build for Production
+
+Create an optimized production build:
+
+```bash
+ng build --configuration production
+```
+
+Output will be in the `www/` directory. The build process:
+- Minifies JavaScript and CSS
+- Optimizes images and assets
+- Applies tree-shaking to remove unused code
+- Uses `environment.prod.ts` configuration
+
+Build configuration from `angular.json`:
+
+```json
+"production": {
+  "budgets": [
+    {
+      "type": "initial",
+      "maximumWarning": "2mb",
+      "maximumError": "5mb"
+    }
+  ],
+  "fileReplacements": [
+    {
+      "replace": "src/environments/environment.ts",
+      "with": "src/environments/environment.prod.ts"
+    }
+  ],
+  "outputHashing": "all"
+}
+```
+
+## Step 5: Capacitor Setup for Mobile
+
+Capacitor bridges your web app to native mobile platforms.
+
+### Initialize Capacitor
+
+Capacitor is pre-configured in this project. Verify the configuration in `capacitor.config.ts`:
+
+```typescript
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'io.ionic.starter',  // Change this to your app ID
+  appName: 'rodandoApp-frontend',
+  webDir: 'www'
+};
+
+export default config;
+```
+
+<Warning>
+  Update `appId` to your unique bundle identifier before building for production:
+  
+  - **Android:** `com.rodando.driver`
+  - **iOS:** `com.rodando.driver`
+</Warning>
+
+### Add Mobile Platforms
+
+<Tabs>
+  <Tab title="Android">
+    ```bash
+    # Build the web assets first
+    npm run build
+    
+    # Add Android platform
+    npx cap add android
+    
+    # Sync web assets to Android
+    npx cap sync android
+    
+    # Open in Android Studio
+    npx cap open android
+    ```
+    
+    **Android-specific configuration:**
+    
+    In `android/app/src/main/AndroidManifest.xml`, ensure these permissions:
+    
+    ```xml
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    ```bash
+    # Build the web assets first
+    npm run build
+    
+    # Add iOS platform
+    npx cap add ios
+    
+    # Install CocoaPods dependencies
+    cd ios/App
+    pod install
+    cd ../..
+    
+    # Sync web assets to iOS
+    npx cap sync ios
+    
+    # Open in Xcode
+    npx cap open ios
+    ```
+    
+    **iOS-specific configuration:**
+    
+    In `ios/App/App/Info.plist`, add location usage descriptions:
+    
+    ```xml
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Rodando Driver needs your location to show nearby trips and navigate to passengers.</string>
+    
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Rodando Driver needs your location in the background to track trip progress.</string>
+    ```
+  </Tab>
+</Tabs>
+
+### Sync Changes to Mobile
+
+Whenever you update the web app, sync changes:
+
+```bash
+# Rebuild web assets
+npm run build
+
+# Sync to all platforms
+npx cap sync
+
+# Or sync to specific platform
+npx cap sync android
+npx cap sync ios
+```
+
+## Step 6: Run on Mobile Device
+
+### Using Android Studio
+
+<Steps>
+  <Step title="Open the project">
+    ```bash
+    npx cap open android
+    ```
+  </Step>
+  
+  <Step title="Connect device or start emulator">
+    - **Physical device:** Enable USB debugging in Developer Options
+    - **Emulator:** Create an AVD (Android Virtual Device) in AVD Manager
+  </Step>
+  
+  <Step title="Run the app">
+    Click the **Run** button (green play icon) in Android Studio toolbar.
+  </Step>
+</Steps>
+
+### Using Xcode
+
+<Steps>
+  <Step title="Open the project">
+    ```bash
+    npx cap open ios
+    ```
+  </Step>
+  
+  <Step title="Select target device">
+    Choose a simulator or connected iOS device from the device menu.
+  </Step>
+  
+  <Step title="Configure signing">
+    - Select the **App** target
+    - Go to **Signing & Capabilities**
+    - Select your development team
+    - Xcode will automatically manage provisioning profiles
+  </Step>
+  
+  <Step title="Run the app">
+    Click the **Play** button or press `Cmd + R`.
+  </Step>
+</Steps>
+
+### Live Reload on Device
+
+For faster development, use live reload:
+
+```bash
+# Start dev server with network access
+ionic serve --host=0.0.0.0
+
+# Note your local IP (e.g., 192.168.1.100)
+
+# Update capacitor.config.ts
+const config: CapacitorConfig = {
+  appId: 'com.rodando.driver',
+  appName: 'Rodando Driver',
+  webDir: 'www',
+  server: {
+    url: 'http://192.168.1.100:8100',  // Your dev server
+    cleartext: true
+  }
+};
+```
+
+Then sync and run:
+
+```bash
+npx cap sync
+npx cap run android  # or ios
+```
+
+<Warning>
+  **Remove the `server` configuration before building for production!** This is only for development.
+</Warning>
+
+## Testing
+
+### Unit Tests
+
+Run unit tests with Karma:
+
+```bash
+npm test
+```
+
+Test configuration in `karma.conf.js`:
+
+```javascript
+module.exports = function (config) {
+  config.set({
+    frameworks: ['jasmine', '@angular-devkit/build-angular'],
+    plugins: [
+      require('karma-jasmine'),
+      require('karma-chrome-launcher'),
+      require('karma-jasmine-html-reporter'),
+      require('karma-coverage'),
+      require('@angular-devkit/build-angular/plugins/karma')
+    ],
+    browsers: ['Chrome']
+  });
+};
+```
+
+### Linting
+
+Check code quality:
+
+```bash
+npm run lint
+```
+
+ESLint configuration in `.eslintrc.json`:
+
+```json
+{
+  "extends": [
+    "plugin:@angular-eslint/recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@angular-eslint/directive-selector": [
+      "error",
+      { "type": "attribute", "prefix": "app", "style": "camelCase" }
+    ]
+  }
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="npm install fails with dependency conflicts">
+    Try using `--legacy-peer-deps`:
+    
+    ```bash
+    npm install --legacy-peer-deps
+    ```
+    
+    Or clear the cache:
+    
+    ```bash
+    npm cache clean --force
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+  
+  <Accordion title="Capacitor sync fails">
+    Ensure you've built the web app first:
+    
+    ```bash
+    ng build
+    npx cap sync
+    ```
+    
+    Check that `www/` directory exists and contains built files.
+  </Accordion>
+  
+  <Accordion title="Android build fails with Gradle errors">
+    Update Gradle in `android/build.gradle`:
+    
+    ```gradle
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.0'
+    }
+    ```
+    
+    And in `android/gradle/wrapper/gradle-wrapper.properties`:
+    
+    ```properties
+    distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-all.zip
+    ```
+  </Accordion>
+  
+  <Accordion title="iOS build fails with CocoaPods errors">
+    ```bash
+    cd ios/App
+    pod repo update
+    pod install --repo-update
+    cd ../..
+    npx cap sync ios
+    ```
+  </Accordion>
+  
+  <Accordion title="Map doesn't render">
+    Verify:
+    - Mapbox access token is valid in `environment.ts`
+    - Internet connection is active
+    - No browser console errors (check DevTools)
+    
+    The map component initializes in `src/app/features/tabs/map/map.component.ts`:
+    
+    ```typescript
+    mapboxgl.accessToken = environment.mapbox.accessToken;
+    this.map = new mapboxgl.Map({
+      container: this.mapEl.nativeElement,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [-75.83, 20.02],
+      zoom: 12
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="WebSocket connection fails">
+    Check:
+    - Backend server is running
+    - `environment.wsBase` points to correct WebSocket URL
+    - CORS is configured on backend to allow WebSocket connections
+    
+    Connection logic in `src/app/core/services/socket/driver-ws.service.ts`:
+    
+    ```typescript
+    this.socket = io(`${environment.wsBase}/drivers`, {
+      transports: ['websocket'],
+      auth: { token: this.auth.accessToken?.() || '' },
+      reconnection: true
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Build Scripts Reference
+
+Available npm scripts from `package.json`:
+
+```json
+{
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "lint": "ng lint"
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="npm start" icon="play">
+    Start development server on `http://localhost:4200`
+  </Card>
+  
+  <Card title="npm run build" icon="hammer">
+    Build production bundle to `www/`
+  </Card>
+  
+  <Card title="npm test" icon="flask">
+    Run unit tests with Karma
+  </Card>
+  
+  <Card title="npm run lint" icon="check">
+    Check code quality with ESLint
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Learn how to use the app from a driver's perspective
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Deep dive into auth flows and token management
+  </Card>
+  
+  <Card title="State Management" icon="database" href="/state-management">
+    Understand NgRx stores and facades
+  </Card>
+  
+  <Card title="WebSocket Events" icon="tower-broadcast" href="/websocket-events">
+    Real-time trip updates and messaging
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Complete API endpoint documentation
+  </Card>
+  
+  <Card title="Deployment" icon="cloud-arrow-up" href="/deployment">
+    Deploy to Google Play and App Store
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [Angular Documentation](https://angular.io/docs)
+- [Ionic Framework Docs](https://ionicframework.com/docs)
+- [Capacitor Docs](https://capacitorjs.com/docs)
+- [NgRx Documentation](https://ngrx.io/docs)
+- [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/)
+- [Socket.IO Client](https://socket.io/docs/v4/client-api/)
+
+<Note>
+  For project-specific questions or issues, please contact the development team or open an issue in the project repository.
+</Note>

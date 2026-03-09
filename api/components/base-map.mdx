@@ -1,0 +1,227 @@
+---
+title: 'BaseMapComponent'
+description: 'Google Maps integration component with automatic script loading and responsive sizing'
+---
+
+## Overview
+
+The `BaseMapComponent` is a standalone Angular component that provides a ready-to-use Google Maps integration with automatic script loading, responsive sizing, and configurable map options. It handles the complexity of loading the Google Maps JavaScript API and provides a clean interface for embedding maps in your application.
+
+## Component Metadata
+
+<ParamField path="selector" type="string" default="app-base-map">
+  The component selector used in templates
+</ParamField>
+
+<ParamField path="standalone" type="boolean" default="true">
+  This is a standalone component that can be imported directly without a module
+</ParamField>
+
+<ParamField path="imports" type="array">
+  Required imports: `GoogleMapsModule`, `IonSpinner`
+</ParamField>
+
+## Input Properties
+
+<ParamField path="height" type="string | number" default="'400px'">
+  The height of the map component. Can be specified as:
+  - A string with CSS units (e.g., `'100%'`, `'500px'`, `'50vh'`)
+  - A number (automatically converted to pixels)
+  
+  This property is bound to the host element's height style.
+</ParamField>
+
+<ParamField path="width" type="string | number" default="'100%'">
+  The width of the map component. Can be specified as:
+  - A string with CSS units (e.g., `'100%'`, `'800px'`, `'80vw'`)
+  - A number (automatically converted to pixels)
+  
+  This property is bound to the host element's width style.
+</ParamField>
+
+## Map Configuration
+
+### Default Center and Zoom
+
+The component initializes with default map coordinates:
+
+```typescript
+center = {
+  lat: 20.0217,   // Latitude
+  lng: -75.8294   // Longitude
+}
+zoom = 14
+```
+
+### Map Options
+
+The component configures Google Maps with the following default options:
+
+<ParamField path="mapOptions.apiKey" type="string">
+  Google Maps API key from environment configuration (`environment.googleMapsApiKey`)
+</ParamField>
+
+<ParamField path="mapOptions.disableDefaultUI" type="boolean" default="true">
+  Disables the default Google Maps UI controls
+</ParamField>
+
+<ParamField path="mapOptions.gestureHandling" type="string" default="'greedy'">
+  Enables immediate gesture handling without requiring Ctrl/Cmd for zooming
+</ParamField>
+
+<ParamField path="mapOptions.clickableIcons" type="boolean" default="true">
+  Allows users to click on map icons for more information
+</ParamField>
+
+## Features
+
+### Automatic Script Loading
+
+The component automatically loads the Google Maps JavaScript API on initialization:
+- Checks if Google Maps is already loaded
+- Avoids duplicate script tags
+- Loads the script with the Places library
+- Displays a loading spinner until the map is ready
+- Handles script loading errors gracefully
+
+### Responsive Sizing
+
+The component uses Angular's `@HostBinding` to dynamically apply width and height styles to the host element, ensuring proper layout and responsiveness.
+
+## Usage Examples
+
+### Basic Usage
+
+```html
+<app-base-map></app-base-map>
+```
+
+### Custom Dimensions with String Values
+
+```html
+<app-base-map 
+  [height]="'600px'" 
+  [width]="'100%'">
+</app-base-map>
+```
+
+### Custom Dimensions with Numeric Values
+
+```html
+<app-base-map 
+  [height]="500" 
+  [width]="800">
+</app-base-map>
+```
+
+Numeric values are automatically converted to pixels (e.g., `500` becomes `'500px'`).
+
+### Responsive Layout
+
+```html
+<div class="map-wrapper">
+  <app-base-map 
+    [height]="'100vh'" 
+    [width]="'100%'">
+  </app-base-map>
+</div>
+```
+
+### Dynamic Sizing from Component
+
+```typescript
+export class MapPageComponent {
+  mapHeight = window.innerHeight - 200;
+  mapWidth = '100%';
+}
+```
+
+```html
+<app-base-map 
+  [height]="mapHeight" 
+  [width]="mapWidth">
+</app-base-map>
+```
+
+## Template Structure
+
+The component renders:
+1. A loading spinner with "Cargando mapa..." text while the Google Maps script loads
+2. The Google Maps component once the script is ready
+
+## Styling
+
+The component includes default styles:
+
+```scss
+:host {
+  display: block;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+```
+
+You can override these styles using CSS custom properties or by targeting the component selector:
+
+```scss
+app-base-map {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+```
+
+## Environment Configuration
+
+Ensure your environment file includes the Google Maps API key:
+
+```typescript
+// environment.ts
+export const environment = {
+  googleMapsApiKey: 'YOUR_GOOGLE_MAPS_API_KEY'
+};
+```
+
+## Loading States
+
+The component provides visual feedback during the loading process:
+
+<ParamField path="isGoogleMapsLoaded" type="boolean" default="false">
+  Internal property that tracks whether the Google Maps script has been loaded successfully
+</ParamField>
+
+While `isGoogleMapsLoaded` is `false`, the component displays:
+- An Ionic spinner with the "crescent" animation
+- Loading text: "Cargando mapa..."
+
+## Implementation Details
+
+### Script Loading Strategy
+
+The component implements a robust script loading strategy:
+
+1. **Check for existing Google Maps**: Verifies if `google.maps` is already available
+2. **Check for existing script tag**: Looks for existing Google Maps script tags in the DOM
+3. **Create script element**: If needed, creates a new script tag with:
+   - API key from environment
+   - Places library enabled
+   - Async and defer attributes for optimal loading
+4. **Event handlers**: Attaches load and error event handlers
+
+### Size Normalization
+
+The component includes a private `normalize()` method that:
+- Converts numeric values to pixel strings (e.g., `400` → `'400px'`)
+- Passes through string values unchanged
+- Ensures consistent CSS value formatting
+
+## Source Code Reference
+
+See the implementation in:
+- Component: `src/app/components/base-map/base-map.component.ts`
+- Template: `src/app/components/base-map/base-map.component.html`
+- Styles: `src/app/components/base-map/base-map.component.scss`

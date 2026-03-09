@@ -1,0 +1,385 @@
+---
+title: Dark Mode
+description: Enable and customize dark mode in the Rodando Driver app
+---
+
+The Rodando Driver app supports dark mode to reduce eye strain during night driving and improve battery life on devices with OLED screens. This guide explains how to enable dark mode and how your preferences are stored.
+
+## Benefits of Dark Mode
+
+<CardGroup cols={2}>
+  <Card title="Reduced Eye Strain" icon="eye">
+    Dark mode is easier on your eyes during night driving or in low-light conditions.
+  </Card>
+  
+  <Card title="Better Battery Life" icon="battery-three-quarters">
+    On OLED and AMOLED screens, dark mode can significantly extend battery life.
+  </Card>
+  
+  <Card title="Night Driving Safety" icon="moon">
+    Reduces screen glare at night, helping you maintain better focus on the road.
+  </Card>
+  
+  <Card title="Personal Preference" icon="palette">
+    Some users simply prefer the aesthetics of dark interfaces.
+  </Card>
+</CardGroup>
+
+## Enabling Dark Mode
+
+You can toggle dark mode on or off at any time:
+
+<Steps>
+  <Step title="Access Settings or Toggle">
+    The dark mode toggle is typically located in:
+    
+    - The main settings screen
+    - The sidebar menu
+    - The app header or toolbar
+    
+    Look for a toggle switch or theme selector.
+  </Step>
+
+  <Step title="Toggle Dark Mode">
+    Tap the toggle switch to enable or disable dark mode:
+    
+    - **ON**: Dark theme is applied immediately
+    - **OFF**: Light theme is restored
+    
+    The change happens instantly without restarting the app.
+  </Step>
+
+  <Step title="Preference Saved">
+    Your selection is automatically saved to local storage and will persist across app restarts.
+  </Step>
+</Steps>
+
+<Tip>
+You can switch between light and dark mode as often as you like. The setting is saved each time you toggle.
+</Tip>
+
+## How Dark Mode Works
+
+The dark mode implementation in Rodando uses a simple but effective approach:
+
+### Theme Application
+
+From `app.component.ts:64-69`, the theme toggle works as follows:
+
+```typescript
+toggleDarkTheme(event: any) {
+  const prefersDark = event.detail.checked;
+  document.body.classList.toggle('dark', prefersDark);
+  this.isDarkTheme = prefersDark;
+  localStorage.setItem('dark-mode', prefersDark.toString());
+}
+```
+
+When you toggle dark mode:
+
+1. **CSS Class Toggle**: Adds or removes the `dark` class from `<body>`
+2. **State Update**: Updates the component's `isDarkTheme` property
+3. **Persistence**: Saves your preference as `'true'` or `'false'` in localStorage
+
+### CSS Implementation
+
+The app uses CSS custom properties (variables) that change based on the `dark` class:
+
+```css
+/* Light mode (default) */
+body {
+  --background: #ffffff;
+  --text-color: #000000;
+  --card-bg: #f5f5f5;
+}
+
+/* Dark mode */
+body.dark {
+  --background: #1a1a1a;
+  --text-color: #ffffff;
+  --card-bg: #2d2d2d;
+}
+```
+
+All UI components reference these variables, so changing the theme updates the entire app instantly.
+
+## Preference Storage
+
+Your dark mode preference is stored in the browser's localStorage:
+
+### Storage Key
+
+```typescript
+localStorage.setItem('dark-mode', 'true');  // Dark mode ON
+localStorage.setItem('dark-mode', 'false'); // Dark mode OFF
+```
+
+- **Key**: `'dark-mode'`
+- **Value**: `'true'` or `'false'` (stored as string)
+- **Scope**: Persists across app sessions until cleared
+
+### Loading Saved Preference
+
+When you open the app, your saved preference is loaded automatically.
+
+From `app.component.ts:17-45`:
+
+```typescript
+ngOnInit() {
+  this.platform.ready().then(() => {
+    // 1. Load saved preference from localStorage
+    const savedTheme = localStorage.getItem('dark-mode');
+
+    if (savedTheme === 'true') {
+      // Apply dark mode
+      document.body.classList.add('dark');
+      this.isDarkTheme = true;
+    } else if (savedTheme === 'false') {
+      // Ensure light mode
+      document.body.classList.remove('dark');
+      this.isDarkTheme = false;
+    } else {
+      // No preference saved: default to light mode
+      document.body.classList.remove('dark');
+      this.isDarkTheme = false;
+    }
+  });
+}
+```
+
+<Note>
+If no preference is saved (first app launch), the app defaults to light mode.
+</Note>
+
+## System Preference Detection
+
+The app can also detect your device's system-level dark mode preference:
+
+### Automatic Theme Matching
+
+From `app.component.ts:46-60`:
+
+```typescript
+// Listen to system preference changes
+window.matchMedia('(prefers-color-scheme: dark)').addListener(e => {
+  // Only apply system preference if user hasn't manually set one
+  if (localStorage.getItem('dark-mode') === null) {
+    if (e.matches) {
+      document.body.classList.add('dark');
+      this.isDarkTheme = true;
+    } else {
+      document.body.classList.remove('dark');
+      this.isDarkTheme = false;
+    }
+  }
+});
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Check for Manual Preference">
+    The app first checks if you've manually set a dark mode preference in the app.
+  </Step>
+
+  <Step title="Use System Preference (If No Manual Setting)">
+    If you haven't set a preference, the app respects your device's system setting:
+    
+    - Device in dark mode → App uses dark theme
+    - Device in light mode → App uses light theme
+  </Step>
+
+  <Step title="Manual Setting Takes Priority">
+    Once you toggle dark mode manually in the app, your choice overrides the system preference.
+  </Step>
+</Steps>
+
+<Tip>
+To revert to following system preference, you would need to clear your manual setting. This feature may be added in a future update.
+</Tip>
+
+## Dark Mode and UI Components
+
+When dark mode is enabled, all major UI components adapt:
+
+### Affected Elements
+
+<Accordion title="Navigation and Sidebar">
+  - Dark background with light text
+  - Subtle borders and dividers
+  - Icon colors adjusted for visibility
+</Accordion>
+
+<Accordion title="Cards and Modals">
+  - Dark card backgrounds
+  - Lighter borders for definition
+  - Adjusted shadow for depth perception
+  - High contrast text for readability
+</Accordion>
+
+<Accordion title="Buttons and Inputs">
+  - Inverted color schemes
+  - Adjusted hover and active states
+  - Form inputs with dark backgrounds
+  - Placeholder text in lighter gray
+</Accordion>
+
+<Accordion title="Maps and Graphics">
+  - Map styles switch to dark variants
+  - Route lines remain highly visible
+  - Markers and pins use high-contrast colors
+  - Reduced brightness on map background
+</Accordion>
+
+<Accordion title="Trip Assignment Modal">
+  When you receive a trip offer in dark mode:
+  
+  - Modal background is dark
+  - Trip details are clearly legible
+  - Countdown timer remains prominent
+  - Accept/Decline buttons maintain clear contrast
+</Accordion>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use at Night" icon="moon">
+    Enable dark mode when driving at night to reduce screen glare and eye strain.
+  </Card>
+  
+  <Card title="Save Battery" icon="battery-half">
+    If you have an OLED device, dark mode can extend battery life by up to 30%.
+  </Card>
+  
+  <Card title="Brightness Adjustment" icon="sun">
+    Combine dark mode with reduced screen brightness for maximum eye comfort.
+  </Card>
+  
+  <Card title="Personal Comfort" icon="circle-check">
+    Choose whichever theme is most comfortable for your eyes, regardless of time of day.
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### Implementation Architecture
+
+1. **Component Level**: `AppComponent` manages the theme state
+2. **DOM Manipulation**: Adds/removes `dark` class on `<body>`
+3. **CSS Variables**: Global theme properties cascade to all components
+4. **LocalStorage**: Persists preference across sessions
+5. **Platform Ready**: Waits for Ionic platform initialization before applying theme
+
+### Toggle Component
+
+The toggle likely uses an Ionic toggle component:
+
+```html
+<ion-item>
+  <ion-label>Dark Mode</ion-label>
+  <ion-toggle 
+    [(ngModel)]="isDarkTheme" 
+    (ionChange)="toggleDarkTheme($event)"
+  ></ion-toggle>
+</ion-item>
+```
+
+Where:
+- `isDarkTheme`: Boolean bound to toggle state
+- `toggleDarkTheme($event)`: Handler that updates theme and storage
+
+### State Synchronization
+
+The `isDarkTheme` property stays synchronized with:
+- The toggle UI state
+- The `dark` class on `<body>`
+- The localStorage value
+
+This ensures consistency across the app.
+
+## Clearing Dark Mode Preference
+
+To reset to system default:
+
+<Steps>
+  <Step title="Open Browser DevTools (Testing)">
+    If testing in browser, open DevTools (F12).
+  </Step>
+
+  <Step title="Navigate to Storage">
+    Go to Application → Local Storage → your app URL.
+  </Step>
+
+  <Step title="Delete 'dark-mode' Key">
+    Remove the `dark-mode` entry from localStorage.
+  </Step>
+
+  <Step title="Reload App">
+    Refresh the app to revert to system preference detection.
+  </Step>
+</Steps>
+
+<Note>
+On mobile devices, you typically can't manually clear localStorage. The app would need a "Reset to System Default" option for this.
+</Note>
+
+## Troubleshooting
+
+<Accordion title="Dark mode toggle doesn't work">
+  If toggling has no effect:
+  
+  - Check if the toggle is properly bound to `toggleDarkTheme()`
+  - Verify localStorage is accessible (not blocked by browser)
+  - Ensure CSS classes are defined in your stylesheets
+  - Try clearing app cache and reloading
+</Accordion>
+
+<Accordion title="Theme doesn't persist after app restart">
+  This indicates localStorage isn't saving properly:
+  
+  - Check browser/WebView localStorage permissions
+  - Verify the app has storage access
+  - Look for errors in console during `setItem()` call
+  - Some browsers block localStorage in private/incognito mode
+</Accordion>
+
+<Accordion title="Some components stay light in dark mode">
+  If certain UI elements don't respect dark mode:
+  
+  - Those components may not use CSS variables
+  - They might have hardcoded colors
+  - Report the issue to the development team
+  - Check if third-party libraries need dark mode configuration
+</Accordion>
+
+<Accordion title="Theme flickers on app start">
+  A brief flash of light theme before dark mode applies can happen because:
+  
+  - Theme is applied in `ngOnInit()` (after initial render)
+  - The HTML renders before JavaScript executes
+  
+  To fix this, add a script in `index.html` that applies theme before Angular loads:
+  
+  ```html
+  <script>
+    // Apply saved theme immediately
+    if (localStorage.getItem('dark-mode') === 'true') {
+      document.body.classList.add('dark');
+    }
+  </script>
+  ```
+</Accordion>
+
+## Future Enhancements
+
+Potential dark mode improvements:
+
+- **Auto-schedule**: Switch to dark mode automatically at sunset
+- **Multiple themes**: Offer additional color schemes beyond light/dark
+- **Granular control**: Customize specific colors and accents
+- **Reset option**: Button to clear preference and revert to system default
+
+## Related Topics
+
+- [Driver Profile](/features/driver-profile) - Manage your driver profile and settings
+- [Installation](/installation) - Set up and configure the app

@@ -1,0 +1,271 @@
+---
+title: DriverAvailabilityApiService
+description: API service for managing driver availability and location updates
+icon: signal
+---
+
+## Overview
+
+The `DriverAvailabilityApiService` manages driver online/offline status, location pinging, and "matchable" status for trip assignment eligibility.
+
+**Location**: `src/app/core/services/http/driver-availability-api.service.ts`
+
+## Public Methods
+
+### updateStatus()
+
+Updates the driver's availability status (online/offline).
+
+<ParamField path="payload" type="UpdateDriverAvailabilityStatus" required>
+  Status update information
+  
+  <Expandable title="Payload Properties">
+    <ParamField path="driverId" type="string" required>
+      The driver's unique identifier
+    </ParamField>
+    <ParamField path="isAvailable" type="boolean" required>
+      Whether the driver is available for trips
+    </ParamField>
+    <ParamField path="reason" type="AvailabilityReason">
+      Reason for unavailability (e.g., 'OFFLINE', 'ON_TRIP', 'BREAK')
+    </ParamField>
+    <ParamField path="location" type="Location">
+      Current driver location coordinates
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns**: `Observable<DriverAvailabilitySnapshot>`
+
+```typescript
+const payload: UpdateDriverAvailabilityStatus = {
+  driverId: 'driver_123',
+  isAvailable: true,
+  location: {
+    lat: 20.0217,
+    lng: -75.8294
+  }
+};
+
+this.driverAvailabilityService.updateStatus(payload).subscribe({
+  next: (snapshot) => {
+    console.log('Status updated:', snapshot.isAvailable);
+    console.log('Matchable:', snapshot.isMatchable);
+  }
+});
+```
+
+### pingLocation()
+
+Sends periodic location updates while the driver is online.
+
+<ParamField path="payload" type="DriverAvailabilityPing" required>
+  Location ping data
+  
+  <Expandable title="Payload Properties">
+    <ParamField path="driverId" type="string" required>
+      The driver's unique identifier
+    </ParamField>
+    <ParamField path="location" type="Location" required>
+      Current driver location
+    </ParamField>
+    <ParamField path="accuracy" type="number">
+      Location accuracy in meters
+    </ParamField>
+    <ParamField path="speed" type="number">
+      Current speed in m/s
+    </ParamField>
+    <ParamField path="heading" type="number">
+      Heading in degrees (0-360)
+    </ParamField>
+    <ParamField path="timestamp" type="string">
+      ISO 8601 timestamp of the location reading
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns**: `Observable<void>`
+
+```typescript
+// Send location ping every 10 seconds while online
+this.locationInterval = setInterval(() => {
+  if (this.isOnline) {
+    const payload: DriverAvailabilityPing = {
+      driverId: this.driverId,
+      location: {
+        lat: this.currentLat,
+        lng: this.currentLng
+      },
+      accuracy: this.locationAccuracy,
+      timestamp: new Date().toISOString()
+    };
+
+    this.driverAvailabilityService.pingLocation(payload).subscribe();
+  }
+}, 10000);
+```
+
+### getStatus()
+
+Retrieves the current availability status for a driver.
+
+<ParamField path="driverId" type="string" required>
+  The driver's unique identifier
+</ParamField>
+
+**Returns**: `Observable<DriverAvailabilitySnapshot>`
+
+```typescript
+this.driverAvailabilityService.getStatus(driverId).subscribe({
+  next: (snapshot) => {
+    this.isOnline = snapshot.isAvailable;
+    this.isMatchable = snapshot.isMatchable;
+    this.currentVehicle = snapshot.currentVehicleId;
+  }
+});
+```
+
+## Response Types
+
+### DriverAvailabilitySnapshot
+
+```typescript
+interface DriverAvailabilitySnapshot {
+  driverId: string;
+  isAvailable: boolean;
+  isMatchable: boolean;  // Can receive trip assignments
+  reason?: AvailabilityReason;
+  currentVehicleId?: string;
+  lastLocation?: Location;
+  lastPingAt?: string;
+  onTripId?: string;  // If currently on a trip
+}
+```
+
+### AvailabilityReason
+
+```typescript
+type AvailabilityReason = 
+  | 'OFFLINE'          // Driver manually went offline
+  | 'ON_TRIP'          // Currently driving a passenger
+  | 'BREAK'            // On break
+  | 'UNAVAILABLE'      // Temporarily unavailable
+  | 'END_OF_SHIFT';    // Finished working
+```
+
+## Availability States
+
+<CardGroup cols={2}>
+  <Card title="Available" icon="check-circle">
+    Driver is online and can receive trip assignments (`isAvailable: true`, `isMatchable: true`)
+  </Card>
+  <Card title="Online but Not Matchable" icon="circle-pause">
+    Driver is online but not eligible for new trips (e.g., needs to select a vehicle)
+  </Card>
+  <Card title="On Trip" icon="car">
+    Driver is currently on an active trip (`isAvailable: true`, `isMatchable: false`)
+  </Card>
+  <Card title="Offline" icon="circle-xmark">
+    Driver is not available for any trips (`isAvailable: false`)
+  </Card>
+</CardGroup>
+
+## Location Pinging Strategy
+
+<Steps>
+  <Step title="Go Online">
+    When driver toggles online status, start location ping interval
+  </Step>
+  <Step title="Ping Every 10 Seconds">
+    Send location updates while online and not on trip
+  </Step>
+  <Step title="Increase Frequency During Trip">
+    Ping every 5 seconds while actively on a trip for real-time tracking
+  </Step>
+  <Step title="Stop When Offline">
+    Clear interval when driver goes offline
+  </Step>
+</Steps>
+
+**Example implementation**:
+
+```typescript
+export class AvailabilityManager {
+  private locationInterval?: any;
+  private pingFrequency = 10000; // 10 seconds
+
+  goOnline(driverId: string) {
+    this.startLocationPinging(driverId);
+  }
+
+  goOffline() {
+    this.stopLocationPinging();
+  }
+
+  onTripStarted() {
+    this.pingFrequency = 5000; // Increase to 5 seconds
+    this.restartLocationPinging();
+  }
+
+  onTripCompleted() {
+    this.pingFrequency = 10000; // Return to 10 seconds
+    this.restartLocationPinging();
+  }
+
+  private startLocationPinging(driverId: string) {
+    this.locationInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const payload: DriverAvailabilityPing = {
+            driverId,
+            location: {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            },
+            accuracy: position.coords.accuracy,
+            speed: position.coords.speed || 0,
+            heading: position.coords.heading || 0,
+            timestamp: new Date().toISOString()
+          };
+          this.driverAvailabilityService.pingLocation(payload).subscribe();
+        },
+        (error) => {
+          console.error('Location error:', error);
+        },
+        { enableHighAccuracy: true }
+      );
+    }, this.pingFrequency);
+  }
+
+  private stopLocationPinging() {
+    if (this.locationInterval) {
+      clearInterval(this.locationInterval);
+      this.locationInterval = undefined;
+    }
+  }
+
+  private restartLocationPinging() {
+    this.stopLocationPinging();
+    this.startLocationPinging(this.driverId);
+  }
+}
+```
+
+## Best Practices
+
+<Tip>
+**Battery optimization**: Use lower-frequency pings (15-30 seconds) when stationary to conserve battery.
+</Tip>
+
+<Warning>
+**Location permissions**: Always request and verify location permissions before starting ping intervals.
+</Warning>
+
+<Note>
+**Offline handling**: Queue failed location pings and retry when connection is restored.
+</Note>
+
+## Related Documentation
+
+- [Managing Availability Guide](/guides/managing-availability)
+- [User Models](/api/models/user-models)

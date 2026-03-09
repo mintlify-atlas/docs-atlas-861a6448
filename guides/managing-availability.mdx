@@ -1,0 +1,287 @@
+---
+title: Managing Your Availability
+description: Control when you're available to receive trip requests by managing your online/offline status
+---
+
+Your availability status determines whether you can receive trip requests from passengers. This guide explains how the availability system works and how to control your online/offline status.
+
+## Understanding Driver Availability
+
+The Rodando Driver app uses a sophisticated availability system to match drivers with passengers. Your availability is tracked through several states:
+
+<CardGroup cols={2}>
+  <Card title="Online" icon="circle-check" color="green">
+    You're connected and actively sending location updates to the system.
+  </Card>
+  
+  <Card title="Available for Trips" icon="car" color="blue">
+    You're online AND ready to receive trip offers from passengers.
+  </Card>
+  
+  <Card title="On Trip" icon="route" color="orange">
+    You're currently on an active trip and won't receive new offers.
+  </Card>
+  
+  <Card title="Offline" icon="circle-xmark" color="red">
+    You're not connected and won't receive any trip requests.
+  </Card>
+</CardGroup>
+
+## Availability States Explained
+
+Your availability is controlled by several factors tracked in the `DriverAvailabilitySnapshot` model:
+
+### Key Properties
+
+- **isOnline**: Whether you're connected to the system
+- **isAvailableForTrips**: Whether you can receive new trip requests
+- **availabilityReason**: Why you might be unavailable (e.g., `OFFLINE`, `ON_TRIP`, `UNAVAILABLE`)
+- **currentTripId**: ID of your active trip (if any)
+- **lastLocationTimestamp**: When your location was last updated
+
+### Matchable Status
+
+You're considered "matchable" (able to receive trip offers) when:
+
+✅ `isOnline === true`
+✅ `isAvailableForTrips === true`
+✅ `availabilityReason === null`
+✅ `currentTripId === null`
+
+<Note>
+All four conditions must be true for you to receive trip requests. If any condition fails, you won't be matched with passengers.
+</Note>
+
+## Going Online/Offline
+
+To toggle your availability status:
+
+<Steps>
+  <Step title="Access Availability Toggle">
+    The availability toggle is typically located in the main dashboard or header of the driver app. It's a prominent switch that shows your current status.
+  </Step>
+
+  <Step title="Toggle Your Status">
+    Tap the toggle switch to change your status:
+    
+    - **Going Online**: Sets `isAvailableForTrips: true`
+    - **Going Offline**: Sets `isAvailableForTrips: false`
+  </Step>
+
+  <Step title="System Updates">
+    When you change your status, the app:
+    
+    - Calls the `patchStatus()` API endpoint
+    - Sends your new availability to the backend
+    - Updates your local state
+    - Logs the change for debugging
+  </Step>
+</Steps>
+
+### API Implementation
+
+From `driver-availability-api.service.ts:27-36`, the status update works as follows:
+
+```typescript
+patchStatus(dto: UpdateDriverAvailabilityStatus) {
+  return this.http.patch<ApiResponse<DriverAvailabilitySnapshot>>(
+    `${this.baseUrl}/driver-availability/status-by-driver`, 
+    dto,
+    { withCredentials: true }
+  ).pipe(
+    map(res => res.data),
+    tap(snap => this.dbg.info('DA','patchStatus ←', { 
+      isAvailableForTrips: snap.isAvailableForTrips, 
+      reason: snap.availabilityReason 
+    }))
+  );
+}
+```
+
+The request payload is simple:
+
+```typescript
+{
+  isAvailableForTrips?: boolean
+}
+```
+
+## Location Pinging
+
+When you're online, the app continuously sends location updates to the backend to help match you with nearby passengers.
+
+### How Location Pinging Works
+
+<Steps>
+  <Step title="GPS Tracking">
+    The app accesses your device's GPS to get your current coordinates.
+  </Step>
+
+  <Step title="Periodic Updates">
+    Location data is sent to the backend at regular intervals via the `ping()` endpoint.
+  </Step>
+
+  <Step title="Data Sent">
+    Each ping includes:
+    
+    - Latitude and longitude (`lat`, `lng`)
+    - GPS accuracy in meters (`accuracyMeters`)
+    - Timestamp when location was captured (`reportedAt`)
+    - Optional `forceSave` flag to bypass throttling
+  </Step>
+</Steps>
+
+### Ping Implementation
+
+From `driver-availability-api.service.ts:38-51`:
+
+```typescript
+ping(dto: DriverAvailabilityPing) {
+  return this.http.post<ApiResponse<DriverAvailabilitySnapshot>>(
+    `${this.baseUrl}/driver-availability/ping-location`, 
+    dto,
+    { withCredentials: true }
+  ).pipe(
+    map(res => res.data),
+    tap(res => console.log('[HTTP] ← ping-location', {
+      lastLocationTimestamp: res.lastLocationTimestamp,
+      hasLocation: !!res.lastLocation,
+      reason: res.availabilityReason,
+    }))
+  );
+}
+```
+
+<Tip>
+Keep location services enabled on your device for accurate matching with nearby passengers. Poor GPS signal may reduce your trip offers.
+</Tip>
+
+## Availability Reasons
+
+The system uses specific reason codes to explain why you might be unavailable:
+
+### AvailabilityReason Enum
+
+```typescript
+enum AvailabilityReason {
+  OFFLINE = 'OFFLINE',      // You manually went offline
+  ON_TRIP = 'ON_TRIP',      // Currently on an active trip
+  UNAVAILABLE = 'UNAVAILABLE'  // Explicitly marked unavailable
+}
+```
+
+<Accordion title="OFFLINE">
+  You've manually toggled your status to offline. The system won't send you any trip requests until you go back online.
+</Accordion>
+
+<Accordion title="ON_TRIP">
+  You're currently on an active trip. This status is automatically set when you accept a trip and cleared when the trip completes or is cancelled.
+</Accordion>
+
+<Accordion title="UNAVAILABLE">
+  You've been marked as unavailable by the system or an admin. This might happen due to compliance issues, vehicle problems, or other administrative reasons.
+</Accordion>
+
+## Automatic Status Changes
+
+Your availability status changes automatically in certain situations:
+
+### When You Accept a Trip
+
+```
+isAvailableForTrips: true → false
+availabilityReason: null → ON_TRIP
+currentTripId: null → <trip-id>
+```
+
+### When a Trip Completes
+
+```
+isAvailableForTrips: false → true
+availabilityReason: ON_TRIP → null
+currentTripId: <trip-id> → null
+```
+
+### When Connection is Lost
+
+If the app loses connection to the backend for an extended period, you may be automatically marked offline to prevent stale matching.
+
+<Warning>
+If you force-quit the app or lose internet connection while online, you may remain marked as available in the system temporarily. This can cause missed trip assignments.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Go Offline During Breaks" icon="coffee">
+    Always toggle offline when taking breaks to avoid missing trip offers or accumulating penalties.
+  </Card>
+  
+  <Card title="Maintain GPS Signal" icon="satellite-dish">
+    Stay in areas with good GPS signal to ensure accurate location tracking and better trip matching.
+  </Card>
+  
+  <Card title="Check Your Status" icon="eye">
+    Regularly verify your online/offline status, especially after app restarts or connectivity issues.
+  </Card>
+  
+  <Card title="Stay Connected" icon="wifi">
+    Maintain a stable internet connection (mobile data or WiFi) to receive real-time trip offers.
+  </Card>
+</CardGroup>
+
+## Viewing Your Current Status
+
+You can check your current availability by calling the `getMine()` API:
+
+```typescript
+getMine() {
+  return this.http.get<ApiResponse<DriverAvailabilitySnapshot>>(
+    `${this.baseUrl}/driver-availability/driver-auth`,
+    { withCredentials: true }
+  ).pipe(
+    map(res => res.data)
+  );
+}
+```
+
+This returns your complete `DriverAvailabilitySnapshot` with all status fields.
+
+## Troubleshooting
+
+<Accordion title="I'm online but not receiving trip offers">
+  Check that:
+  
+  - `isAvailableForTrips` is `true`
+  - `availabilityReason` is `null`
+  - `currentTripId` is `null`
+  - Your location is being updated (check `lastLocationTimestamp`)
+  - You have a valid vehicle registered
+  - You're in an area with active trip demand
+</Accordion>
+
+<Accordion title="Can't toggle online">
+  This may happen if:
+  
+  - You don't have a verified vehicle registered
+  - Your driver account has compliance issues
+  - The backend API is unreachable
+  - You're still assigned to a previous trip
+  
+  Try completing any active trips and checking your vehicle setup.
+</Accordion>
+
+<Accordion title="Location not updating">
+  Ensure:
+  
+  - Location permissions are granted to the app
+  - GPS is enabled on your device
+  - You're not in an area with poor GPS signal (like underground parking)
+  - The app is running in the foreground or has background location permission
+</Accordion>
+
+## Related Topics
+
+- [Accepting Trip Requests](/guides/accepting-trips) - How to respond to trip offers
+- [Vehicle Setup](/guides/vehicle-setup) - Register your vehicle to go online
+- [Google Maps Configuration](/configuration/google-maps) - Location and mapping setup

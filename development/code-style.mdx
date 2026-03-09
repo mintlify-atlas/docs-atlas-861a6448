@@ -1,0 +1,708 @@
+---
+title: Code Style Guide
+description: Coding standards and conventions for the Rodando Driver project
+icon: code
+---
+
+## Overview
+
+The Rodando Driver project follows strict coding standards to ensure consistency, maintainability, and code quality. We use ESLint, TypeScript strict mode, and Angular style guidelines.
+
+## TypeScript Configuration
+
+The project uses **strict TypeScript** configuration for type safety:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  }
+}
+```
+
+<Note>
+All TypeScript strict flags are enabled. Never use `any` without explicit reasoning, and avoid `@ts-ignore` comments.
+</Note>
+
+### Path Aliases
+
+Use the configured path alias for cleaner imports:
+
+```typescript
+// ✅ Good - Using path alias
+import { AuthService } from '@/app/core/services/http/auth.service';
+import { User } from '@/app/core/models/user/user.response';
+
+// ❌ Bad - Relative paths
+import { AuthService } from '../../../core/services/http/auth.service';
+import { User } from '../../../../core/models/user/user.response';
+```
+
+## ESLint Configuration
+
+### Angular-Specific Rules
+
+The project enforces Angular ESLint rules:
+
+<CodeGroup>
+```json Component Suffixes
+{
+  "@angular-eslint/component-class-suffix": [
+    "error",
+    {
+      "suffixes": ["Page", "Component"]
+    }
+  ]
+}
+```
+
+```json Component Selectors
+{
+  "@angular-eslint/component-selector": [
+    "error",
+    {
+      "type": "element",
+      "prefix": "app",
+      "style": "kebab-case"
+    }
+  ]
+}
+```
+
+```json Directive Selectors
+{
+  "@angular-eslint/directive-selector": [
+    "error",
+    {
+      "type": "attribute",
+      "prefix": "app",
+      "style": "camelCase"
+    }
+  ]
+}
+```
+</CodeGroup>
+
+### NgRx Rules
+
+All NgRx best practices are enforced:
+
+```json .eslintrc.json
+{
+  "files": ["*.ts"],
+  "extends": ["plugin:@ngrx/all"]
+}
+```
+
+<Tip>
+Run `npm run lint` to check for violations before committing.
+</Tip>
+
+## Naming Conventions
+
+### Components
+
+**Class Names:**
+- Use `Component` suffix for standard components
+- Use `Page` suffix for routable page components
+
+```typescript
+// ✅ Good
+export class HomeComponent { }
+export class LoginPage { }
+export class TripProgressComponent { }
+
+// ❌ Bad
+export class Home { }
+export class LoginScreen { }
+export class TripProgress { }
+```
+
+**Selectors:**
+- Use `app-` prefix
+- Use kebab-case
+
+```typescript
+// ✅ Good
+@Component({
+  selector: 'app-driver-info-modal',
+  selector: 'app-trip-progress',
+})
+
+// ❌ Bad
+@Component({
+  selector: 'driver-info-modal',  // missing prefix
+  selector: 'appTripProgress',     // camelCase instead of kebab-case
+})
+```
+
+### Services
+
+**Class Names:**
+- Use `Service` suffix
+- Descriptive names indicating purpose
+
+```typescript
+// ✅ Good
+export class AuthService { }
+export class TripApiService { }
+export class SecureStorageService { }
+export class DriverAvailabilityApiService { }
+
+// ❌ Bad
+export class Auth { }
+export class Trip { }
+export class Storage { }
+```
+
+**File Naming:**
+- Use kebab-case
+- Include service type in name
+
+```
+✅ Good:
+auth.service.ts
+trip-api.service.ts
+driver-ws.service.ts
+
+❌ Bad:
+AuthService.ts
+tripApi.ts
+driver-websocket.ts
+```
+
+### State Management
+
+**Stores (NgRx Signals):**
+
+```typescript
+// ✅ Good - Store naming
+export const AuthStore = signalStore(...);
+export const DriverAvailabilityStore = signalStore(...);
+export const TripStore = signalStore(...);
+
+// ✅ Good - Facade naming
+export class AuthFacade { }
+export class DriverAvailabilityFacade { }
+export class TripFacade { }
+```
+
+**Models and Interfaces:**
+
+```typescript
+// ✅ Good - Response models
+export interface LoginResponse { }
+export interface UserProfile { }
+export interface TripAssignedResponse { }
+
+// ✅ Good - Payload models
+export interface LoginPayload { }
+export interface UpdateLocationPayload { }
+
+// ✅ Good - State interfaces
+interface AuthState {
+  accessToken: string | null;
+  user: User | null;
+  loading: boolean;
+}
+```
+
+### Guards and Interceptors
+
+```typescript
+// ✅ Good - Functional guards
+export const authGuard: CanActivateFn = (route, state) => { };
+
+// ✅ Good - Interceptors
+export const authInterceptor: HttpInterceptorFn = (req, next) => { };
+export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => { };
+```
+
+## Component Structure
+
+### Standalone Components
+
+All new components should be standalone:
+
+```typescript
+import { Component, inject, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { IonContent, IonButton } from '@ionic/angular/standalone';
+
+@Component({
+  selector: 'app-home',
+  templateUrl: './home.component.html',
+  styleUrls: ['./home.component.scss'],
+  standalone: true,
+  imports: [CommonModule, IonContent, IonButton],
+})
+export default class HomeComponent implements OnInit {
+  // Use inject() for dependency injection
+  private authFacade = inject(AuthFacade);
+  private router = inject(Router);
+  
+  // Public properties for template
+  user = this.authFacade.user;
+  loading = this.authFacade.loading;
+  
+  ngOnInit() {
+    // Initialization logic
+  }
+  
+  // Public methods for template
+  logout() {
+    this.authFacade.logout();
+  }
+}
+```
+
+<Note>
+**Key Points:**
+- Prefer `inject()` over constructor injection
+- Export as default for routable components
+- Import only necessary Ionic components
+- Keep components focused and single-responsibility
+</Note>
+
+### Component Organization
+
+Order class members logically:
+
+```typescript
+export class MyComponent {
+  // 1. Decorators
+  @ViewChild(IonContent) content!: IonContent;
+  @Input() data?: any;
+  @Output() save = new EventEmitter();
+  
+  // 2. Injected dependencies
+  private authFacade = inject(AuthFacade);
+  private tripService = inject(TripApiService);
+  
+  // 3. Public properties (template bindings)
+  user = this.authFacade.user;
+  trips: Trip[] = [];
+  loading = false;
+  
+  // 4. Private properties
+  private destroy$ = new Subject<void>();
+  
+  // 5. Lifecycle hooks
+  ngOnInit() { }
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+  
+  // 6. Public methods (template/API)
+  saveTrip() { }
+  cancel() { }
+  
+  // 7. Private helper methods
+  private loadData() { }
+  private handleError() { }
+}
+```
+
+## Service Patterns
+
+### HTTP Services
+
+Use consistent patterns for API services:
+
+```typescript
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable, map, catchError } from 'rxjs';
+import { environment } from 'src/environments/environment';
+
+interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TripApiService {
+  private readonly baseUrl = environment.apiUrl;
+  private readonly http = inject(HttpClient);
+  
+  getById(tripId: string): Observable<Trip> {
+    const url = `${this.baseUrl}/trips/${tripId}`;
+    return this.http.get<ApiResponse<Trip>>(url).pipe(
+      map(resp => this.unwrap(resp)),
+      catchError(err => this.handleError(err, url))
+    );
+  }
+  
+  private unwrap<R extends { data: any }, T>(resp: R): T {
+    if (!resp || typeof resp !== 'object' || !('data' in resp)) {
+      throw new Error('Unexpected response shape');
+    }
+    return resp.data as T;
+  }
+  
+  private handleError(err: any, url: string) {
+    // Normalize errors
+    return throwError(() => err);
+  }
+}
+```
+
+<Tip>
+**Service Best Practices:**
+- Use `providedIn: 'root'` for singleton services
+- Centralize API URL construction
+- Normalize API responses with `unwrap()` helpers
+- Handle errors consistently
+- Return typed Observables
+</Tip>
+
+### Facade Pattern
+
+Use facades to orchestrate complex business logic:
+
+```typescript
+@Injectable({ providedIn: 'root' })
+export class AuthFacade {
+  private readonly authStore = inject(AuthStore);
+  private readonly authService = inject(AuthService);
+  private readonly secureStorage = inject(SecureStorageService);
+  private readonly router = inject(Router);
+  
+  // Expose store signals
+  user = this.authStore.user;
+  loading = this.authStore.loading;
+  isAuthenticated = computed(() => !!this.authStore.accessToken());
+  
+  // Business logic methods
+  login(payload: LoginPayload): Observable<User> {
+    this.authStore.setLoading(true);
+    
+    return this.authService.login(payload).pipe(
+      tap(response => this.handleLoginSuccess(response)),
+      catchError(err => this.handleLoginError(err)),
+      finalize(() => this.authStore.setLoading(false))
+    );
+  }
+  
+  private handleLoginSuccess(response: LoginResponse) {
+    // Complex orchestration logic
+  }
+  
+  private handleLoginError(err: any) {
+    // Error handling logic
+    return throwError(() => err);
+  }
+}
+```
+
+## RxJS Best Practices
+
+### Observable Naming
+
+Use `$` suffix for observables:
+
+```typescript
+// ✅ Good
+const user$ = this.authService.getUser();
+const trips$ = this.tripService.getActive();
+private destroy$ = new Subject<void>();
+
+// ❌ Bad
+const user = this.authService.getUser();
+const tripsObservable = this.tripService.getActive();
+```
+
+### Subscription Management
+
+Always unsubscribe to prevent memory leaks:
+
+<CodeGroup>
+```typescript takeUntil Pattern (Recommended)
+export class MyComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  
+  ngOnInit() {
+    this.dataService.getData()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        // Handle data
+      });
+  }
+  
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+}
+```
+
+```typescript Async Pipe (Best for Templates)
+@Component({
+  template: `
+    <div *ngIf="data$ | async as data">
+      {{ data.name }}
+    </div>
+  `
+})
+export class MyComponent {
+  data$ = this.dataService.getData();
+}
+```
+
+```typescript take(1) for One-Time Operations
+ngOnInit() {
+  this.authService.login(payload)
+    .pipe(take(1))
+    .subscribe({
+      next: user => console.log(user),
+      error: err => console.error(err)
+    });
+}
+```
+</CodeGroup>
+
+### Error Handling
+
+Handle errors gracefully:
+
+```typescript
+this.tripService.getById(id).pipe(
+  catchError(err => {
+    // Log error
+    console.error('[TripComponent] Failed to load trip:', err);
+    
+    // Show user-friendly message
+    this.showError('Failed to load trip details');
+    
+    // Return fallback value or re-throw
+    return of(null);
+  })
+).subscribe(trip => {
+  if (trip) {
+    this.trip = trip;
+  }
+});
+```
+
+## Template Conventions
+
+### Angular Syntax
+
+```html
+<!-- ✅ Good -->
+<ion-button (click)="save()" [disabled]="loading">
+  {{ loading ? 'Saving...' : 'Save' }}
+</ion-button>
+
+<div *ngIf="user$ | async as user">
+  Welcome, {{ user.name }}!
+</div>
+
+<ion-list>
+  <ion-item *ngFor="let trip of trips; trackBy: trackById">
+    {{ trip.destination }}
+  </ion-item>
+</ion-list>
+
+<!-- ❌ Bad -->
+<ion-button (click)="save()" [disabled]="loading == true">
+  {{ loading == true ? 'Saving...' : 'Save' }}
+</ion-button>
+
+<div *ngIf="user">
+  Welcome, {{ user.name }}!
+</div>
+
+<ion-item *ngFor="let trip of trips">
+  {{ trip.destination }}
+</ion-item>
+```
+
+<Warning>
+**Template Best Practices:**
+- Always use `trackBy` with `*ngFor`
+- Prefer `async` pipe for observables
+- Use strict equality (`===`) in templates
+- Keep template logic minimal
+</Warning>
+
+## Type Safety
+
+### Interfaces Over Types
+
+Prefer interfaces for object shapes:
+
+```typescript
+// ✅ Good
+interface User {
+  id: string;
+  email: string;
+  phoneNumber: string | null;
+}
+
+interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+// ⚠️ Use types for unions/primitives
+type SessionType = 'web' | 'mobile_app' | 'api_client';
+type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+```
+
+### Avoid `any`
+
+Always provide proper types:
+
+```typescript
+// ✅ Good
+function parseResponse<T>(response: ApiResponse<T>): T {
+  return response.data;
+}
+
+function handleError(err: HttpErrorResponse): ApiError {
+  return {
+    message: err.message,
+    status: err.status
+  };
+}
+
+// ❌ Bad
+function parseResponse(response: any): any {
+  return response.data;
+}
+
+function handleError(err: any): any {
+  return err;
+}
+```
+
+### Nullable Types
+
+Be explicit about null/undefined:
+
+```typescript
+// ✅ Good
+interface User {
+  id: string;
+  email: string;
+  phoneNumber: string | null;  // Explicitly nullable
+  avatar?: string;              // Optional property
+}
+
+function getUser(id: string): Observable<User | null> {
+  return this.http.get<User>(`/users/${id}`).pipe(
+    catchError(() => of(null))
+  );
+}
+
+// ❌ Bad
+interface User {
+  id: string;
+  email: string;
+  phoneNumber: string;  // Not clear if nullable
+  avatar: string;       // Not clear if optional
+}
+```
+
+## Comments and Documentation
+
+### JSDoc for Public APIs
+
+```typescript
+/**
+ * Authenticates a driver and initializes the session.
+ * 
+ * @param payload - User credentials
+ * @returns Observable that emits the authenticated user
+ * @throws {ApiError} When credentials are invalid
+ */
+login(payload: LoginPayload): Observable<User> {
+  // Implementation
+}
+
+/**
+ * Normalizes HTTP errors into a consistent ApiError format.
+ * Handles various error shapes from the backend.
+ */
+private async normalizeHttpError(err: HttpErrorResponse): Promise<ApiError> {
+  // Implementation
+}
+```
+
+### Inline Comments
+
+Use comments to explain **why**, not **what**:
+
+```typescript
+// ✅ Good - Explains reasoning
+// Offset by 30s to refresh before token expires
+const AUTO_REFRESH_OFFSET = 30_000;
+
+// Use cookie-based auth for web sessions to prevent XSS token theft
+const usesCookie = sessionType === SessionType.WEB;
+
+// ❌ Bad - States the obvious
+// Set loading to true
+this.loading = true;
+
+// Call the API
+this.authService.login(payload);
+```
+
+## Linting
+
+### Running ESLint
+
+```bash
+# Check for linting errors
+npm run lint
+
+# Auto-fix issues
+ng lint --fix
+```
+
+### Pre-commit Hook
+
+Consider setting up a pre-commit hook:
+
+```json package.json
+{
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm test"
+    }
+  }
+}
+```
+
+## Summary Checklist
+
+Before committing code, verify:
+
+- [ ] No ESLint errors (`npm run lint`)
+- [ ] All TypeScript strict mode rules satisfied
+- [ ] Component/service naming follows conventions
+- [ ] Proper use of `inject()` for dependency injection
+- [ ] Observables have `$` suffix
+- [ ] Subscriptions properly managed (takeUntil/async pipe)
+- [ ] No `any` types without justification
+- [ ] Public APIs documented with JSDoc
+- [ ] Path aliases used for imports (`@/*`)
+- [ ] Template uses `trackBy` with `*ngFor`
+
+<Tip>
+Consistency is key! When in doubt, follow existing patterns in the codebase.
+</Tip>

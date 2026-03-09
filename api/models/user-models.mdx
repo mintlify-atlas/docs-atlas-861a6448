@@ -1,0 +1,880 @@
+---
+title: "User Models"
+description: "Data models for user profiles, authentication credentials, and driver-specific data in the Rodando Driver application"
+---
+
+## Overview
+
+The user models handle user profiles, authentication credentials, registration, and driver-specific information for the Rodando platform.
+
+## Response Models
+
+### UserProfile
+
+Basic public user profile information.
+
+**Source:** `src/app/core/models/user/user.response.ts:7`
+
+```typescript
+interface UserProfile {
+  id: string | null;
+  name: string | null;
+  email: string | null;
+  phoneNumber?: string | null;
+  profilePictureUrl?: string | null;
+  createdAt?: string;
+}
+```
+
+<ResponseField name="id" type="string" optional>
+  Unique identifier for the user (UUID). May be null for anonymous profiles.
+</ResponseField>
+
+<ResponseField name="name" type="string" optional>
+  User's full name.
+</ResponseField>
+
+<ResponseField name="email" type="string" optional>
+  User's email address.
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string" optional>
+  User's phone number in international format.
+</ResponseField>
+
+<ResponseField name="profilePictureUrl" type="string" optional>
+  URL to the user's profile picture.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" optional>
+  ISO 8601 timestamp of when the user account was created.
+</ResponseField>
+
+<CodeGroup>
+```json Example User Profile
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "John Driver",
+  "email": "john.driver@example.com",
+  "phoneNumber": "+1234567890",
+  "profilePictureUrl": "https://example.com/profiles/john.jpg",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+</CodeGroup>
+
+---
+
+### UserListItem
+
+Lightweight user representation for list views.
+
+**Source:** `src/app/core/models/user/user.response.ts:21`
+
+```typescript
+interface UserListItem {
+  id: string;
+  name: string;
+  email: string;
+  profilePictureUrl?: string;
+  userType: UserType;
+  status: UserStatus;
+  phoneNumber?: string;
+  createdAt: string;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the user (UUID).
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  User's full name.
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address.
+</ResponseField>
+
+<ResponseField name="profilePictureUrl" type="string" optional>
+  URL to the user's profile picture.
+</ResponseField>
+
+<ResponseField name="userType" type="UserType" required>
+  Type of user account.
+  
+  **Enum values:** `passenger` | `driver` | `admin`
+</ResponseField>
+
+<ResponseField name="status" type="UserStatus" required>
+  Current status of the user account.
+  
+  **Enum values:** `active` | `inactive` | `banned`
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string" optional>
+  User's phone number.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of account creation.
+</ResponseField>
+
+<CodeGroup>
+```json Example User List Item
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "John Driver",
+  "email": "john.driver@example.com",
+  "profilePictureUrl": "https://example.com/profiles/john.jpg",
+  "userType": "driver",
+  "status": "active",
+  "phoneNumber": "+1234567890",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+</CodeGroup>
+
+---
+
+### User
+
+Complete user object with all details.
+
+**Source:** `src/app/core/models/user/user.response.ts:37`
+
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  phoneNumber?: string;
+  phoneNumberVerified: boolean;
+  userType: UserType;
+  profilePictureUrl?: string;
+  currentLocation?: Geolocation;
+  vehicles: string[];
+  status: UserStatus;
+  preferredLanguage?: string;
+  termsAcceptedAt?: string;
+  privacyPolicyAcceptedAt?: string;
+  createdAt: string;
+  deletedAt?: string;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the user (UUID).
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  User's full name.
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address.
+</ResponseField>
+
+<ResponseField name="emailVerified" type="boolean" required>
+  Whether the email address has been verified.
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string" optional>
+  User's phone number in international format.
+</ResponseField>
+
+<ResponseField name="phoneNumberVerified" type="boolean" required>
+  Whether the phone number has been verified.
+</ResponseField>
+
+<ResponseField name="userType" type="UserType" required>
+  Type of user account.
+  
+  **Enum values:** `passenger` | `driver` | `admin`
+</ResponseField>
+
+<ResponseField name="profilePictureUrl" type="string" optional>
+  URL to the user's profile picture.
+</ResponseField>
+
+<ResponseField name="currentLocation" type="Geolocation" optional>
+  User's current geographic location.
+  
+  <Expandable title="Geolocation properties">
+    <ResponseField name="latitude" type="number" required>
+      Latitude coordinate
+    </ResponseField>
+    <ResponseField name="longitude" type="number" required>
+      Longitude coordinate
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="vehicles" type="string[]" required>
+  Array of vehicle IDs associated with this user (for drivers).
+</ResponseField>
+
+<ResponseField name="status" type="UserStatus" required>
+  Current account status.
+  
+  **Enum values:** `active` | `inactive` | `banned`
+</ResponseField>
+
+<ResponseField name="preferredLanguage" type="string" optional>
+  ISO 639-1 language code (e.g., "en", "es", "fr").
+</ResponseField>
+
+<ResponseField name="termsAcceptedAt" type="string" optional>
+  ISO 8601 timestamp of when the user accepted the terms of service.
+</ResponseField>
+
+<ResponseField name="privacyPolicyAcceptedAt" type="string" optional>
+  ISO 8601 timestamp of when the user accepted the privacy policy.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of account creation.
+</ResponseField>
+
+<ResponseField name="deletedAt" type="string" optional>
+  ISO 8601 timestamp of account deletion (soft delete). Null for active accounts.
+</ResponseField>
+
+<CodeGroup>
+```json Example Complete User
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "John Driver",
+  "email": "john.driver@example.com",
+  "emailVerified": true,
+  "phoneNumber": "+1234567890",
+  "phoneNumberVerified": true,
+  "userType": "driver",
+  "profilePictureUrl": "https://example.com/profiles/john.jpg",
+  "currentLocation": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "vehicles": [
+    "vehicle-uuid-1",
+    "vehicle-uuid-2"
+  ],
+  "status": "active",
+  "preferredLanguage": "en",
+  "termsAcceptedAt": "2024-01-15T10:30:00Z",
+  "privacyPolicyAcceptedAt": "2024-01-15T10:30:00Z",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "deletedAt": null
+}
+```
+</CodeGroup>
+
+---
+
+## Payload Models
+
+### CreateUserPayload
+
+Payload for creating a new user profile.
+
+**Source:** `src/app/core/models/user/user.payload.ts:27`
+
+```typescript
+interface CreateUserPayload {
+  name: string;
+  email: string;
+  userType: UserType;
+  phoneNumber?: string;
+  status?: UserStatus;
+  profilePictureUrl?: string;
+  currentLocation?: Location;
+  vehicleId?: string;
+  preferredLanguage?: string;
+  termsAcceptedAt?: string;
+  privacyPolicyAcceptedAt?: string;
+}
+```
+
+<ResponseField name="name" type="string" required>
+  User's full name.
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address.
+</ResponseField>
+
+<ResponseField name="userType" type="UserType" required>
+  Type of user account to create.
+  
+  **Enum values:** `passenger` | `driver` | `admin`
+</ResponseField>
+
+<ResponseField name="phoneNumber" type="string" optional>
+  User's phone number in international format.
+</ResponseField>
+
+<ResponseField name="status" type="UserStatus" optional>
+  Initial account status (defaults to `active`).
+  
+  **Enum values:** `active` | `inactive` | `banned`
+</ResponseField>
+
+<ResponseField name="profilePictureUrl" type="string" optional>
+  URL to the user's profile picture.
+</ResponseField>
+
+<ResponseField name="currentLocation" type="Location" optional>
+  User's initial location.
+  
+  <Expandable title="Location properties">
+    <ResponseField name="latitude" type="number" required>
+      Latitude coordinate
+    </ResponseField>
+    <ResponseField name="longitude" type="number" required>
+      Longitude coordinate
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="vehicleId" type="string" optional>
+  ID of the vehicle to associate with the driver.
+</ResponseField>
+
+<ResponseField name="preferredLanguage" type="string" optional>
+  ISO 639-1 language code (e.g., "en", "es").
+</ResponseField>
+
+<ResponseField name="termsAcceptedAt" type="string" optional>
+  ISO 8601 timestamp of terms acceptance.
+</ResponseField>
+
+<ResponseField name="privacyPolicyAcceptedAt" type="string" optional>
+  ISO 8601 timestamp of privacy policy acceptance.
+</ResponseField>
+
+<CodeGroup>
+```json Example Create User
+{
+  "name": "John Driver",
+  "email": "john.driver@example.com",
+  "userType": "driver",
+  "phoneNumber": "+1234567890",
+  "status": "active",
+  "profilePictureUrl": "https://example.com/profiles/john.jpg",
+  "currentLocation": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "vehicleId": "vehicle-uuid-1",
+  "preferredLanguage": "en",
+  "termsAcceptedAt": "2024-01-15T10:30:00Z",
+  "privacyPolicyAcceptedAt": "2024-01-15T10:30:00Z"
+}
+```
+</CodeGroup>
+
+---
+
+### UpdateUserPayload
+
+Payload for updating an existing user profile. All fields are optional.
+
+**Source:** `src/app/core/models/user/user.payload.ts:46`
+
+```typescript
+type UpdateUserPayload = Partial<CreateUserPayload>;
+```
+
+<ResponseField name="...fields" type="Partial<CreateUserPayload>">
+  All fields from CreateUserPayload are optional. Only include fields you want to update.
+</ResponseField>
+
+<CodeGroup>
+```json Example Update User
+{
+  "name": "John Updated Driver",
+  "profilePictureUrl": "https://example.com/profiles/john-new.jpg",
+  "preferredLanguage": "es"
+}
+```
+</CodeGroup>
+
+---
+
+### RegisterUserPayload
+
+Complete payload for registering a new user with credentials.
+
+**Source:** `src/app/core/models/user/user.payload.ts:53`
+
+```typescript
+interface RegisterUserPayload {
+  user: CreateUserPayload;
+  credentials: CreateAuthCredentialsPayload;
+}
+```
+
+<ResponseField name="user" type="CreateUserPayload" required>
+  User profile information.
+  
+  <Expandable title="CreateUserPayload properties">
+    See [CreateUserPayload](#createuserpayload) above for all properties.
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="credentials" type="CreateAuthCredentialsPayload" required>
+  Authentication credentials for the new user.
+  
+  <Expandable title="CreateAuthCredentialsPayload properties">
+    <ResponseField name="authenticationMethod" type="AuthMethod" required>
+      Authentication method: `local` | `google` | `facebook` | `apple`
+    </ResponseField>
+    <ResponseField name="userId" type="string" optional>
+      User ID (typically assigned by backend)
+    </ResponseField>
+    <ResponseField name="password" type="string" optional>
+      Password (required for local authentication)
+    </ResponseField>
+    <ResponseField name="oauthProviders" type="OAuthProviders" optional>
+      OAuth provider IDs
+      
+      <Expandable title="OAuth providers">
+        <ResponseField name="googleId" type="string" optional>
+          Google OAuth user ID
+        </ResponseField>
+        <ResponseField name="facebookId" type="string" optional>
+          Facebook OAuth user ID
+        </ResponseField>
+        <ResponseField name="appleId" type="string" optional>
+          Apple OAuth user ID
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="mfaEnabled" type="boolean" optional>
+      Whether multi-factor authentication is enabled
+    </ResponseField>
+    <ResponseField name="lastPasswordChangeAt" type="string" optional>
+      ISO 8601 timestamp of last password change
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<CodeGroup>
+```json Example Registration
+{
+  "user": {
+    "name": "John Driver",
+    "email": "john.driver@example.com",
+    "userType": "driver",
+    "phoneNumber": "+1234567890",
+    "preferredLanguage": "en",
+    "termsAcceptedAt": "2024-01-15T10:30:00Z",
+    "privacyPolicyAcceptedAt": "2024-01-15T10:30:00Z"
+  },
+  "credentials": {
+    "authenticationMethod": "local",
+    "password": "SecurePassword123!",
+    "mfaEnabled": false
+  }
+}
+```
+</CodeGroup>
+
+---
+
+### ChangePasswordPayload
+
+Payload for changing a user's password.
+
+**Source:** `src/app/core/models/user/user.payload.ts:66`
+
+```typescript
+interface ChangePasswordPayload {
+  newPassword: string;
+  confirmPassword: string;
+}
+```
+
+<ResponseField name="newPassword" type="string" required>
+  The new password. Should meet security requirements (minimum length, complexity, etc.).
+  
+  **Example:** `MiNuevaContrasenaSegura123!`
+</ResponseField>
+
+<ResponseField name="confirmPassword" type="string" required>
+  Confirmation of the new password. Must match `newPassword` exactly.
+  
+  **Example:** `MiNuevaContrasenaSegura123!`
+</ResponseField>
+
+<CodeGroup>
+```json Example Change Password
+{
+  "newPassword": "MyNewSecurePassword123!",
+  "confirmPassword": "MyNewSecurePassword123!"
+}
+```
+</CodeGroup>
+
+---
+
+## Auxiliary Types
+
+### UserType
+
+Enumeration of user account types.
+
+**Source:** `src/app/core/models/user/user.auxiliary.ts:4`
+
+```typescript
+enum UserType {
+  Passenger = 'passenger',
+  Driver = 'driver',
+  Admin = 'admin',
+}
+```
+
+<ResponseField name="Passenger" type="string">
+  Regular passenger user. Value: `'passenger'`
+</ResponseField>
+
+<ResponseField name="Driver" type="string">
+  Driver user with vehicle access. Value: `'driver'`
+</ResponseField>
+
+<ResponseField name="Admin" type="string">
+  Administrative user with elevated privileges. Value: `'admin'`
+</ResponseField>
+
+---
+
+### UserStatus
+
+Enumeration of user account statuses.
+
+**Source:** `src/app/core/models/user/user.auxiliary.ts:12`
+
+```typescript
+enum UserStatus {
+  Active = 'active',
+  Inactive = 'inactive',
+  Banned = 'banned',
+}
+```
+
+<ResponseField name="Active" type="string">
+  Account is active and in good standing. Value: `'active'`
+</ResponseField>
+
+<ResponseField name="Inactive" type="string">
+  Account is temporarily inactive. Value: `'inactive'`
+</ResponseField>
+
+<ResponseField name="Banned" type="string">
+  Account has been banned due to policy violations. Value: `'banned'`
+</ResponseField>
+
+---
+
+### AuthMethod
+
+Enumeration of authentication methods.
+
+**Source:** `src/app/core/models/user/user.auxiliary.ts:19`
+
+```typescript
+enum AuthMethod {
+  LOCAL = 'local',
+  GOOGLE = 'google',
+  FACEBOOK = 'facebook',
+  APPLE = 'apple',
+}
+```
+
+<ResponseField name="LOCAL" type="string">
+  Local authentication with email/phone and password. Value: `'local'`
+</ResponseField>
+
+<ResponseField name="GOOGLE" type="string">
+  Google OAuth authentication. Value: `'google'`
+</ResponseField>
+
+<ResponseField name="FACEBOOK" type="string">
+  Facebook OAuth authentication. Value: `'facebook'`
+</ResponseField>
+
+<ResponseField name="APPLE" type="string">
+  Apple Sign In authentication. Value: `'apple'`
+</ResponseField>
+
+---
+
+### Location
+
+Geographic coordinates.
+
+**Source:** `src/app/core/models/user/user.auxiliary.ts:33`
+
+```typescript
+interface Location {
+  latitude: number;
+  longitude: number;
+}
+```
+
+<ResponseField name="latitude" type="number" required>
+  Latitude coordinate (range: -90 to 90).
+</ResponseField>
+
+<ResponseField name="longitude" type="number" required>
+  Longitude coordinate (range: -180 to 180).
+</ResponseField>
+
+---
+
+### OAuthProviders
+
+OAuth provider identifiers.
+
+**Source:** `src/app/core/models/user/user.auxiliary.ts:42`
+
+```typescript
+interface OAuthProviders {
+  googleId?: string;
+  facebookId?: string;
+  appleId?: string;
+}
+```
+
+<ResponseField name="googleId" type="string" optional>
+  Google OAuth user identifier.
+</ResponseField>
+
+<ResponseField name="facebookId" type="string" optional>
+  Facebook OAuth user identifier.
+</ResponseField>
+
+<ResponseField name="appleId" type="string" optional>
+  Apple OAuth user identifier.
+</ResponseField>
+
+---
+
+## Driver-Specific Models
+
+### DriverAvailabilitySnapshot
+
+Current availability and location snapshot for a driver.
+
+**Source:** `src/app/core/models/driver-availability.models.ts:10`
+
+```typescript
+interface DriverAvailabilitySnapshot {
+  id: UUID;
+  driverId: UUID;
+  isOnline: boolean;
+  isAvailableForTrips: boolean;
+  lastLocation: { lat: number; lng: number } | null;
+  lastLocationTimestamp: string | null;
+  currentTripId: UUID | null;
+  currentVehicleId: UUID | null;
+  lastOnlineTimestamp: string | null;
+  availabilityReason: AvailabilityReason | null;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+```
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for this availability snapshot (UUID).
+</ResponseField>
+
+<ResponseField name="driverId" type="string" required>
+  Driver's user ID (UUID).
+</ResponseField>
+
+<ResponseField name="isOnline" type="boolean" required>
+  Whether the driver is currently online in the app.
+</ResponseField>
+
+<ResponseField name="isAvailableForTrips" type="boolean" required>
+  Whether the driver is available to accept new trip assignments.
+</ResponseField>
+
+<ResponseField name="lastLocation" type="object" optional>
+  Driver's last known geographic location.
+  
+  <Expandable title="Coordinates">
+    <ResponseField name="lat" type="number" required>
+      Latitude coordinate
+    </ResponseField>
+    <ResponseField name="lng" type="number" required>
+      Longitude coordinate
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="lastLocationTimestamp" type="string" optional>
+  ISO 8601 timestamp of the last location update.
+</ResponseField>
+
+<ResponseField name="currentTripId" type="string" optional>
+  ID of the trip currently in progress (UUID). Null if not on a trip.
+</ResponseField>
+
+<ResponseField name="currentVehicleId" type="string" optional>
+  ID of the vehicle currently being used (UUID).
+</ResponseField>
+
+<ResponseField name="lastOnlineTimestamp" type="string" optional>
+  ISO 8601 timestamp of when the driver last went online.
+</ResponseField>
+
+<ResponseField name="availabilityReason" type="AvailabilityReason" optional>
+  Reason for current availability status.
+  
+  **Enum values:** `OFFLINE` | `ON_TRIP` | `UNAVAILABLE`
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last update to this snapshot.
+</ResponseField>
+
+<ResponseField name="deletedAt" type="string" optional>
+  ISO 8601 timestamp of soft deletion. Null for active records.
+</ResponseField>
+
+<CodeGroup>
+```json Example Driver Availability
+{
+  "id": "snapshot-uuid-123",
+  "driverId": "550e8400-e29b-41d4-a716-446655440000",
+  "isOnline": true,
+  "isAvailableForTrips": true,
+  "lastLocation": {
+    "lat": 40.7128,
+    "lng": -74.0060
+  },
+  "lastLocationTimestamp": "2024-03-09T14:30:00Z",
+  "currentTripId": null,
+  "currentVehicleId": "vehicle-uuid-1",
+  "lastOnlineTimestamp": "2024-03-09T12:00:00Z",
+  "availabilityReason": null,
+  "updatedAt": "2024-03-09T14:30:00Z",
+  "deletedAt": null
+}
+```
+</CodeGroup>
+
+---
+
+### DriverAvailabilityPing
+
+Compact location ping payload sent by drivers to update their location.
+
+**Source:** `src/app/core/models/driver-availability.models.ts:31`
+
+```typescript
+interface DriverAvailabilityPing {
+  lat?: number;
+  lng?: number;
+  accuracyMeters?: number;
+  reportedAt?: string;
+  forceSave?: boolean;
+}
+```
+
+<ResponseField name="lat" type="number" optional>
+  Latitude coordinate of current location.
+</ResponseField>
+
+<ResponseField name="lng" type="number" optional>
+  Longitude coordinate of current location.
+</ResponseField>
+
+<ResponseField name="accuracyMeters" type="number" optional>
+  GPS accuracy in meters.
+</ResponseField>
+
+<ResponseField name="reportedAt" type="string" optional>
+  ISO 8601 timestamp when the location was captured on the device.
+</ResponseField>
+
+<ResponseField name="forceSave" type="boolean" optional>
+  Force the backend to save this ping even if it's similar to the previous one.
+</ResponseField>
+
+<CodeGroup>
+```json Example Location Ping
+{
+  "lat": 40.7128,
+  "lng": -74.0060,
+  "accuracyMeters": 15.5,
+  "reportedAt": "2024-03-09T14:30:00Z",
+  "forceSave": false
+}
+```
+</CodeGroup>
+
+---
+
+### UpdateDriverAvailabilityStatus
+
+Payload for toggling driver availability from the UI.
+
+**Source:** `src/app/core/models/driver-availability.models.ts:40`
+
+```typescript
+interface UpdateDriverAvailabilityStatus {
+  isAvailableForTrips?: boolean;
+}
+```
+
+<ResponseField name="isAvailableForTrips" type="boolean" optional>
+  Set to `true` to mark driver as available for trips, `false` to mark as unavailable.
+</ResponseField>
+
+<CodeGroup>
+```json Example Toggle Availability
+{
+  "isAvailableForTrips": true
+}
+```
+</CodeGroup>
+
+---
+
+### AvailabilityReason
+
+Enumeration of reasons for a driver's current availability status.
+
+**Source:** `src/app/core/models/driver-availability.models.ts:3`
+
+```typescript
+enum AvailabilityReason {
+  OFFLINE = 'OFFLINE',
+  ON_TRIP = 'ON_TRIP',
+  UNAVAILABLE = 'UNAVAILABLE',
+}
+```
+
+<ResponseField name="OFFLINE" type="string">
+  Driver is offline. Value: `'OFFLINE'`
+</ResponseField>
+
+<ResponseField name="ON_TRIP" type="string">
+  Driver is currently on a trip. Value: `'ON_TRIP'`
+</ResponseField>
+
+<ResponseField name="UNAVAILABLE" type="string">
+  Driver is online but explicitly unavailable. Value: `'UNAVAILABLE'`
+</ResponseField>
+
+---
+
+## Related Models
+
+See also:
+- [Authentication Models](/api/models/auth-models) - Login and session management
+- [Trip Models](/api/models/trip-models) - Trip data and assignments

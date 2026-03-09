@@ -1,0 +1,520 @@
+---
+title: 'Google Maps Configuration'
+description: 'Set up and configure Google Maps API for the Rodando Driver application'
+icon: 'map-location-dot'
+---
+
+## Overview
+
+Rodando Driver uses the Google Maps JavaScript API with the Places library for map display and location services. The application dynamically loads the Google Maps script and configures it through the `BaseMapComponent`.
+
+## Prerequisites
+
+Before configuring Google Maps in your application, you need:
+
+- A Google Cloud Platform account
+- A project with billing enabled
+- Google Maps JavaScript API enabled
+- Places API enabled
+- A valid API key
+
+## Google Cloud Console Setup
+
+<Steps>
+  <Step title="Create a Google Cloud Project">
+    1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+    2. Click **Select a project** → **New Project**
+    3. Enter a project name (e.g., "Rodando Driver")
+    4. Click **Create**
+  </Step>
+
+  <Step title="Enable Required APIs">
+    Navigate to **APIs & Services** → **Library** and enable:
+    
+    - **Maps JavaScript API** - For displaying maps
+    - **Places API** - For location autocomplete and place details
+    - **Geocoding API** (optional) - For address lookup
+    - **Directions API** (optional) - For route planning
+    
+    <Note>
+    Click on each API and press the **Enable** button.
+    </Note>
+  </Step>
+
+  <Step title="Create an API Key">
+    1. Go to **APIs & Services** → **Credentials**
+    2. Click **+ Create Credentials** → **API key**
+    3. Copy the generated API key
+    4. Click **Restrict Key** to configure restrictions
+  </Step>
+
+  <Step title="Configure API Key Restrictions">
+    For security, restrict your API key:
+    
+    **Application Restrictions:**
+    - For development: Select **HTTP referrers** and add `http://localhost:*`
+    - For production (Android): Select **Android apps** and add your package name and SHA-1 fingerprint
+    - For production (iOS): Select **iOS apps** and add your bundle identifier
+    
+    **API Restrictions:**
+    - Select **Restrict key**
+    - Enable only:
+      - Maps JavaScript API
+      - Places API
+      - Any other APIs you're using
+    
+    <Warning>
+    Never use unrestricted API keys in production. Always configure application and API restrictions.
+    </Warning>
+  </Step>
+
+  <Step title="Set Up Billing">
+    1. Go to **Billing** in Google Cloud Console
+    2. Link a billing account to your project
+    3. Set up budget alerts to monitor usage
+    
+    <Note>
+    Google provides $200 in free monthly credits for Maps Platform. Most development and small-scale apps stay within the free tier.
+    </Note>
+  </Step>
+</Steps>
+
+## Application Configuration
+
+### Environment Setup
+
+Add your Google Maps API key to the environment files:
+
+<CodeGroup>
+```typescript src/environments/environment.ts
+export const environment = {
+  production: false,
+  googleMapsApiKey: 'YOUR_DEVELOPMENT_API_KEY&libraries=places',
+  apiUrl: 'http://localhost:3000/api',
+  // ... other configuration
+};
+```
+
+```typescript src/environments/environment.prod.ts
+export const environment = {
+  production: true,
+  googleMapsApiKey: 'YOUR_PRODUCTION_API_KEY&libraries=places'
+};
+```
+</CodeGroup>
+
+<Note>
+The `&libraries=places` parameter loads the Places library automatically. This is required for location autocomplete functionality.
+</Note>
+
+### Map Component Configuration
+
+The `BaseMapComponent` (located at `src/app/components/base-map/base-map.component.ts`) handles Google Maps initialization:
+
+```typescript src/app/components/base-map/base-map.component.ts
+import { Component, HostBinding, Input, OnInit } from '@angular/core';
+import { GoogleMapsModule } from '@angular/google-maps';
+import { environment } from '../../../environments/environment';
+
+@Component({
+  selector: 'app-base-map',
+  templateUrl: './base-map.component.html',
+  styleUrls: ['./base-map.component.scss'],
+  standalone: true,
+  imports: [GoogleMapsModule],
+})
+export class BaseMapComponent implements OnInit {
+  @Input() height: string | number = '400px';
+  @Input() width: string | number = '100%';
+  
+  // Default map center (Santiago de Cuba)
+  center = {
+    lat: 20.0217,   // Latitude
+    lng: -75.8294   // Longitude
+  };
+  
+  zoom = 14;
+  
+  // Map configuration options
+  mapOptions = {
+    apiKey: environment.googleMapsApiKey,
+    disableDefaultUI: true,      // Hide default controls
+    gestureHandling: 'greedy',   // Allow one-finger panning
+    clickableIcons: true         // Enable clicking on POIs
+  };
+  
+  ngOnInit() {
+    this.loadGoogleMapsScript();
+  }
+  
+  private loadGoogleMapsScript(): void {
+    // Dynamic script loading implementation
+    // ...
+  }
+}
+```
+
+## Map Options Reference
+
+The `mapOptions` object accepts the following configuration:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | Required | Your Google Maps API key |
+| `disableDefaultUI` | `boolean` | `true` | Hide all default UI controls |
+| `gestureHandling` | `string` | `'greedy'` | Map gesture behavior (`'greedy'`, `'cooperative'`, `'none'`) |
+| `clickableIcons` | `boolean` | `true` | Allow clicking on map POIs |
+| `mapTypeControl` | `boolean` | `false` | Show map type control (roadmap, satellite) |
+| `zoomControl` | `boolean` | `false` | Show zoom +/- buttons |
+| `streetViewControl` | `boolean` | `false` | Show street view control |
+| `fullscreenControl` | `boolean` | `false` | Show fullscreen button |
+
+### Gesture Handling Modes
+
+<Tabs>
+  <Tab title="Greedy">
+    ```typescript
+    mapOptions = {
+      gestureHandling: 'greedy'
+    };
+    ```
+    
+    - One-finger pan
+    - Two-finger zoom
+    - Best for mobile apps
+    - Currently used in Rodando Driver
+  </Tab>
+
+  <Tab title="Cooperative">
+    ```typescript
+    mapOptions = {
+      gestureHandling: 'cooperative'
+    };
+    ```
+    
+    - Requires Ctrl+scroll to zoom (desktop)
+    - Two-finger pan/zoom (mobile)
+    - Better for pages with scrollable content
+  </Tab>
+
+  <Tab title="None">
+    ```typescript
+    mapOptions = {
+      gestureHandling: 'none'
+    };
+    ```
+    
+    - Disables all gestures
+    - Map is view-only
+    - Use for static map displays
+  </Tab>
+</Tabs>
+
+## Dynamic Script Loading
+
+The application dynamically loads the Google Maps JavaScript API to optimize performance:
+
+```typescript src/app/components/base-map/base-map.component.ts
+private loadGoogleMapsScript(): void {
+  // Check if Google Maps is already loaded
+  if (typeof google !== 'undefined' && google.maps) {
+    this.isGoogleMapsLoaded = true;
+    return;
+  }
+
+  // Check if script is already in DOM
+  const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+  if (existingScript) {
+    existingScript.addEventListener('load', () => {
+      this.isGoogleMapsLoaded = true;
+    });
+    return;
+  }
+
+  // Create and load the script
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${environment.googleMapsApiKey}&libraries=places`;
+  script.async = true;
+  script.defer = true;
+
+  script.onload = () => {
+    this.isGoogleMapsLoaded = true;
+    console.log('Google Maps script loaded successfully');
+  };
+
+  script.onerror = () => {
+    console.error('Failed to load Google Maps script');
+  };
+
+  document.head.appendChild(script);
+}
+```
+
+<Note>
+This approach prevents duplicate script loading and handles cases where multiple map components are used.
+</Note>
+
+## Using the BaseMapComponent
+
+Incorporate the map component in your pages:
+
+```typescript
+import { BaseMapComponent } from './components/base-map/base-map.component';
+
+@Component({
+  selector: 'app-my-page',
+  template: `
+    <app-base-map 
+      [height]="'500px'" 
+      [width]="'100%'">
+    </app-base-map>
+  `,
+  imports: [BaseMapComponent],
+  standalone: true
+})
+export class MyPageComponent {}
+```
+
+### Component Inputs
+
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `height` | `string \| number` | `'400px'` | Map container height |
+| `width` | `string \| number` | `'100%'` | Map container width |
+
+## Advanced Configuration
+
+### Custom Map Styling
+
+Add custom map styles to match your app's theme:
+
+```typescript
+mapOptions = {
+  apiKey: environment.googleMapsApiKey,
+  styles: [
+    {
+      featureType: 'poi',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }]
+    },
+    {
+      featureType: 'transit',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }]
+    }
+  ]
+};
+```
+
+### Enable Additional Controls
+
+```typescript
+mapOptions = {
+  apiKey: environment.googleMapsApiKey,
+  zoomControl: true,
+  zoomControlOptions: {
+    position: google.maps.ControlPosition.RIGHT_CENTER
+  },
+  mapTypeControl: true,
+  mapTypeControlOptions: {
+    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+    position: google.maps.ControlPosition.TOP_RIGHT
+  }
+};
+```
+
+### Set Initial Map Type
+
+```typescript
+mapOptions = {
+  apiKey: environment.googleMapsApiKey,
+  mapTypeId: 'roadmap' // 'roadmap', 'satellite', 'hybrid', 'terrain'
+};
+```
+
+## Places Library Integration
+
+The Places library is loaded automatically via the API URL parameter:
+
+```typescript
+script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+```
+
+### Using Places Autocomplete
+
+```typescript
+import { } from 'google.maps';
+
+const input = document.getElementById('autocomplete-input') as HTMLInputElement;
+const autocomplete = new google.maps.places.Autocomplete(input, {
+  types: ['geocode'],
+  componentRestrictions: { country: 'cu' } // Restrict to Cuba
+});
+
+autocomplete.addListener('place_changed', () => {
+  const place = autocomplete.getPlace();
+  console.log('Selected place:', place);
+});
+```
+
+## Dependencies
+
+Ensure you have the Angular Google Maps package installed:
+
+```json package.json
+{
+  "dependencies": {
+    "@angular/google-maps": "^18.2.14"
+  }
+}
+```
+
+Install if missing:
+
+```bash
+npm install @angular/google-maps
+```
+
+## Testing Your Configuration
+
+<Steps>
+  <Step title="Verify API Key">
+    Check that your API key is correctly set in the environment file:
+    
+    ```bash
+    grep googleMapsApiKey src/environments/environment.ts
+    ```
+  </Step>
+
+  <Step title="Test in Development">
+    Start the development server:
+    
+    ```bash
+    npm start
+    ```
+    
+    Navigate to a page with a map component and check the browser console for errors.
+  </Step>
+
+  <Step title="Check Network Requests">
+    Open browser DevTools → Network tab and verify:
+    - Script loads from `maps.googleapis.com`
+    - No 403 (API key) or 429 (quota) errors
+    - Map tiles load successfully
+  </Step>
+
+  <Step title="Verify Places Library">
+    Open browser console and type:
+    
+    ```javascript
+    google.maps.places
+    ```
+    
+    Should return an object (not undefined).
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### API Key Errors
+
+**Error: "This page can't load Google Maps correctly"**
+
+Solutions:
+1. Verify your API key is correct in `environment.ts`
+2. Check that billing is enabled in Google Cloud Console
+3. Ensure Maps JavaScript API is enabled
+4. Verify API key restrictions allow your domain/app
+
+### Quota Exceeded Errors
+
+**Error: "You have exceeded your daily request quota"**
+
+Solutions:
+1. Check usage in Google Cloud Console → APIs & Services → Dashboard
+2. Increase quota limits or enable billing
+3. Implement request caching to reduce API calls
+4. Use map load event listeners to prevent duplicate loads
+
+### Map Not Displaying
+
+**Symptoms: Gray box instead of map**
+
+Solutions:
+1. Check browser console for JavaScript errors
+2. Verify the map container has a defined height
+3. Ensure `isGoogleMapsLoaded` is `true` before rendering
+4. Check that center coordinates are valid
+
+### Places Library Not Loading
+
+**Error: "google.maps.places is undefined"**
+
+Solutions:
+1. Verify `&libraries=places` is in your API URL
+2. Wait for script load before accessing Places API:
+
+```typescript
+script.onload = () => {
+  this.isGoogleMapsLoaded = true;
+  // Now safe to use google.maps.places
+};
+```
+
+## Security Best Practices
+
+<Warning>
+**Never expose unrestricted API keys in your code or repositories.**
+</Warning>
+
+<Steps>
+  <Step title="Use Environment Variables">
+    Store API keys in environment files, not in component code.
+  </Step>
+
+  <Step title="Configure API Restrictions">
+    Limit API key usage to only required APIs (Maps JavaScript API, Places API).
+  </Step>
+
+  <Step title="Set Application Restrictions">
+    - Development: Restrict to `localhost`
+    - Android: Add package name + SHA-1 fingerprint
+    - iOS: Add bundle identifier
+  </Step>
+
+  <Step title="Monitor Usage">
+    Set up billing alerts in Google Cloud Console to catch unusual activity.
+  </Step>
+
+  <Step title="Use Separate Keys">
+    Use different API keys for development, staging, and production.
+  </Step>
+</Steps>
+
+## Cost Optimization
+
+### Free Tier Usage
+
+Google Maps Platform provides:
+- $200 monthly credit
+- 28,000+ map loads per month (free)
+- 100,000+ Places Autocomplete requests (free)
+
+### Optimization Tips
+
+1. **Cache map instances** - Don't reload maps unnecessarily
+2. **Lazy load** - Only load maps when needed (current implementation)
+3. **Use static maps** - For non-interactive displays
+4. **Debounce autocomplete** - Reduce Places API calls
+5. **Enable billing alerts** - Monitor unexpected usage
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Config" icon="gear" href="/configuration/environment">
+    Learn more about environment variable configuration
+  </Card>
+  <Card title="Capacitor Setup" icon="mobile" href="/configuration/capacitor">
+    Configure Capacitor for native mobile builds
+  </Card>
+</CardGroup>

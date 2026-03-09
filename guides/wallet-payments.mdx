@@ -1,0 +1,403 @@
+---
+title: Wallet and Payments
+description: Understand your driver wallet, track earnings, and manage payment modes in Rodando
+---
+
+The Rodando Driver app includes a wallet system to help you track your earnings, manage payments, and view transaction history. This guide explains how the wallet works and how to handle different payment methods.
+
+## Understanding Your Driver Wallet
+
+Your driver wallet is a centralized place to:
+
+- Track total earnings from completed trips
+- Monitor pending payments
+- View transaction history
+- Manage cash vs. digital payment collections
+- Request payouts to your bank account
+
+<Note>
+The wallet reflects your earnings balance, not necessarily cash in hand. Cash payments are collected directly from passengers, while digital payments are credited to your wallet.
+</Note>
+
+## Accessing Your Wallet
+
+To view your wallet:
+
+<Steps>
+  <Step title="Open Sidebar Menu">
+    Tap the menu icon (☰) or swipe from the left edge to open the navigation sidebar.
+  </Step>
+
+  <Step title="Select Wallet">
+    Navigate to the **Wallet** section in the sidebar menu.
+  </Step>
+
+  <Step title="View Wallet Dashboard">
+    The wallet screen displays your current balance, recent transactions, and payment options.
+  </Step>
+</Steps>
+
+The wallet component is located at:
+- **Component**: `src/app/features/sidebar/wallet/wallet.component.ts`
+- **Route**: Likely `/wallet` or `/sidebar/wallet`
+
+## Payment Modes
+
+Rodando supports two primary payment modes for trips:
+
+### Cash Payments
+
+<Card title="Cash (Efectivo)" icon="money-bill">
+  Passengers pay you directly in cash at the end of the trip.
+  
+  **How it works:**
+  - Trip offer shows payment mode as "Efectivo" (💵 icon)
+  - You collect the exact fare amount in cash from the passenger
+  - You keep the cash immediately
+  - Transaction is recorded in your trip history
+  - Commission may be deducted from future digital payments or payouts
+</Card>
+
+#### Handling Cash Trips
+
+When completing a cash trip:
+
+<Steps>
+  <Step title="Confirm Total Amount">
+    At trip completion, the app shows a confirmation modal with:
+    
+    - Base fare
+    - Any waiting time charges
+    - Final total to collect
+    - Payment mode indicator (Cash)
+  </Step>
+
+  <Step title="Collect Payment">
+    Collect the exact amount shown from the passenger. From `trip.facade.ts:387-494`, the modal displays:
+    
+    ```typescript
+    {
+      passengerName: "John Doe",
+      base: 50.00,
+      waitingExtra: 5.00,
+      total: 55.00,
+      currency: "CUP",
+      paymentMode: "cash"
+    }
+    ```
+  </Step>
+
+  <Step title="Confirm Collection">
+    After collecting the cash, confirm in the app by tapping the confirm button in the modal. This:
+    
+    - Marks the trip as completed
+    - Records the payment in your history
+    - Returns you to available status
+  </Step>
+</Steps>
+
+<Tip>
+Always carry small bills for making change. Passengers may not have exact amounts.
+</Tip>
+
+### Digital Payments
+
+<Card title="Digital Payment" icon="credit-card">
+  Passengers pay through the app using credit/debit cards, mobile wallets, or other digital methods.
+  
+  **How it works:**
+  - Payment is processed automatically through the app
+  - Funds are added to your driver wallet
+  - You don't handle cash
+  - Commission is automatically deducted
+  - Available for payout according to your payout schedule
+</Card>
+
+<Note>
+Currently, the codebase primarily references cash payments ("Efectivo"). Digital payment integration may be in development or configured per region.
+</Note>
+
+## Trip Fare Components
+
+When you complete a trip, the total fare consists of:
+
+### Base Fare
+
+Calculated from:
+- Distance traveled (per kilometer rate)
+- Time duration (per minute rate)
+- Base rate (minimum fare)
+- Demand multiplier (surge pricing, if applicable)
+
+From `trip.facade.ts:227-239`:
+
+```typescript
+const baseFare = 
+  typeof trip.fareEstimatedTotal === 'number'
+    ? trip.fareEstimatedTotal
+    : typeof trip.fareFinalTotal === 'number'
+    ? trip.fareFinalTotal
+    : null;
+
+const currency = 
+  trip.fareFinalCurrency ?? 
+  trip.fareEstimatedCurrency ?? 
+  'CUP';
+```
+
+### Waiting Time Charges
+
+If you wait for the passenger at the pickup location beyond a grace period:
+
+<Steps>
+  <Step title="Grace Period">
+    Passengers typically have 2-5 minutes to reach the vehicle after you arrive.
+  </Step>
+
+  <Step title="Waiting Timer Starts">
+    After you mark "Arrived at Pickup", a waiting timer begins counting:
+    
+    ```typescript
+    // From trip.facade.ts:533-563
+    this.waitingTimerSub = interval(1000).subscribe(() => {
+      this.store.tickWaiting(1);
+      
+      // After threshold (e.g., 5 seconds in demo, typically 5+ minutes)
+      if (s2.waitingSeconds >= threshold && !s2.waitingPenaltyApplied) {
+        const base = s2.baseFare ?? 0;
+        const extra = Math.max(1, Math.round(base * 0.05)); // 5%
+        this.store.applyWaitingPenalty(extra, "Waiting charge applied");
+      }
+    });
+    ```
+  </Step>
+
+  <Step title="Penalty Applied">
+    A waiting charge (typically percentage of base fare or per-minute rate) is automatically added to the trip total.
+  </Step>
+</Steps>
+
+<Warning>
+Waiting charges only apply if the passenger is late. Don't mark "Arrived" until you're actually at the pickup location.
+</Warning>
+
+### Extra Fees
+
+Additional charges may include:
+- Tolls or parking fees (if supported)
+- Special handling (oversized luggage, etc.)
+- Route changes requested by passenger
+- Other approved extra charges
+
+## Completing Trips and Confirming Payment
+
+When you complete a trip, a confirmation modal appears:
+
+### Completion Flow
+
+From `trip.facade.ts:387-494`:
+
+<Steps>
+  <Step title="Tap Complete Trip">
+    When you reach the destination and the passenger exits, tap the "Complete Trip" button.
+  </Step>
+
+  <Step title="Review Confirmation Modal">
+    A modal opens showing:
+    
+    - Passenger name
+    - Origin and destination addresses
+    - Distance and duration
+    - Base fare
+    - Waiting charges (if applicable)
+    - Final total amount
+    - Payment mode (Cash or Digital)
+    - Currency (e.g., CUP)
+    
+    ```typescript
+    const modal = await this.modalCtrl.create({
+      component: DriverConfirmOrderModalComponent,
+      componentProps: {
+        passengerName,
+        originLabel: m.originLabel,
+        destinationLabel: m.destinationLabel,
+        distanceText: m.distanceText,
+        durationText: m.durationText,
+        base,
+        waitingExtra: extra || null,
+        total: finalTotal,
+        currency: cur,
+        paymentMode: trip?.paymentMode ?? 'cash',
+      }
+    });
+    ```
+  </Step>
+
+  <Step title="Confirm Payment Collection">
+    After collecting payment (cash) or verifying digital payment processing, tap the "Confirm" button.
+  </Step>
+
+  <Step title="Trip Finalizes">
+    The system:
+    
+    - Calls `completeTrip(tripId, payload)` API
+    - Updates trip status to "completed"
+    - Records payment in transaction history
+    - Updates your earnings (wallet for digital, trip history for cash)
+    - Returns you to available status
+  </Step>
+</Steps>
+
+<Note>
+If you cancel the confirmation modal without confirming, the trip remains in "in_progress" state and doesn't finalize.
+</Note>
+
+## Transaction History
+
+Your wallet includes a transaction history showing:
+
+- **Completed Trips**: Each trip with fare breakdown
+- **Waiting Charges**: Extra fees from passenger delays
+- **Payouts**: Transfers to your bank account
+- **Adjustments**: Refunds, bonuses, or corrections
+- **Commission Deductions**: Platform fees taken from earnings
+
+### Viewing Transaction Details
+
+For each transaction, you can typically view:
+- Date and time
+- Trip ID or transaction ID
+- Passenger name (for trips)
+- Amount earned
+- Payment method
+- Commission deducted
+- Net earning
+
+## Payout Management
+
+### Requesting Payouts
+
+To transfer your wallet balance to your bank account:
+
+<Steps>
+  <Step title="Minimum Balance">
+    Ensure you have at least the minimum payout amount (varies by region).
+  </Step>
+
+  <Step title="Bank Account Linked">
+    Verify your bank account is connected and verified in settings.
+  </Step>
+
+  <Step title="Request Payout">
+    Tap the "Request Payout" or "Withdraw" button in the wallet screen.
+  </Step>
+
+  <Step title="Confirm Details">
+    Review the payout amount, bank account, and expected transfer date.
+  </Step>
+
+  <Step title="Process Time">
+    Payouts typically process within 1-3 business days, depending on your bank.
+  </Step>
+</Steps>
+
+<Tip>
+Schedule regular automatic payouts (weekly, bi-weekly) to avoid manually requesting transfers.
+</Tip>
+
+## Fare Breakdown Example
+
+Here's how a typical trip fare is calculated:
+
+```
+Base Fare Components:
+  Distance: 8 km × $5/km = $40.00
+  Time: 15 min × $1/min = $15.00
+  Base rate (minimum): $10.00
+  Subtotal (highest): $40.00
+
+Additional Charges:
+  Waiting time: 7 minutes = $5.00
+
+Gross Total: $45.00
+
+Passenger pays: $45.00 (cash or digital)
+
+Driver receives:
+  Gross: $45.00
+  Platform commission (20%): -$9.00
+  Net earnings: $36.00
+```
+
+<Note>
+Commission rates vary by region, vehicle type, and driver status (new vs. experienced).
+</Note>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Track Cash Carefully" icon="calculator">
+    Keep a daily log of cash collected to reconcile with app records and ensure accurate accounting.
+  </Card>
+  
+  <Card title="Regular Payouts" icon="building-columns">
+    Transfer digital earnings regularly to minimize risk and maintain cash flow.
+  </Card>
+  
+  <Card title="Verify Amounts" icon="check-double">
+    Always double-check the total before collecting payment from passengers.
+  </Card>
+  
+  <Card title="Keep Change" icon="coins">
+    Carry sufficient small bills and coins to make change for cash passengers.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Wallet balance doesn't match my records">
+  This can happen if:
+  
+  - Some trips are still processing (pending status)
+  - Commission calculations differ from expectations
+  - Adjustments or refunds were applied
+  - Cash trips aren't included in wallet (only digital)
+  
+  Review your transaction history for each trip and contact support if discrepancies persist.
+</Accordion>
+
+<Accordion title="Payout request failed">
+  Common causes:
+  
+  - Below minimum payout threshold
+  - Bank account not verified
+  - Insufficient funds after pending deductions
+  - Invalid bank account information
+  
+  Check bank account settings and ensure verification is complete.
+</Accordion>
+
+<Accordion title="Payment mode not showing correctly">
+  The payment mode is set when the passenger books the trip. If it shows incorrectly:
+  
+  - This is likely a backend data issue
+  - Contact support to report the discrepancy
+  - Do NOT collect payment in a different mode than shown
+  - The modal always shows `trip?.paymentMode ?? 'cash'` as fallback
+</Accordion>
+
+<Accordion title="Waiting charge wasn't applied">
+  Waiting charges are applied automatically when:
+  
+  - You mark "Arrived at Pickup"
+  - Waiting time exceeds the grace period threshold
+  - The penalty calculation completes
+  
+  If you waited but no charge appears, ensure you properly marked arrival. Manual adjustments may require support contact.
+</Accordion>
+
+## Related Topics
+
+- [Accepting Trips](/guides/accepting-trips) - How to accept and manage trip offers
+- [Trip Management](/features/trip-management) - Complete trip lifecycle
+- [Earnings Tracking](/features/earnings-tracking) - Track your earnings and payouts

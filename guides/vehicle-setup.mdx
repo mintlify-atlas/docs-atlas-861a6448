@@ -1,0 +1,339 @@
+---
+title: Vehicle Setup
+description: Add and manage your vehicle information in the Rodando Driver app
+---
+
+Before you can start accepting trips, you need to register your vehicle in the Rodando Driver app. This guide walks you through the vehicle setup process and management.
+
+## Why Vehicle Information is Required
+
+Your vehicle information is essential for:
+
+- **Passenger Safety**: Passengers can identify your vehicle by make, model, color, and license plate
+- **Trip Matching**: The system matches trips based on vehicle type and capacity
+- **Regulatory Compliance**: Vehicle registration ensures compliance with local transportation regulations
+- **Insurance Coverage**: Proper vehicle documentation is required for insurance purposes
+
+<Note>
+You must have at least one registered and verified vehicle to go online and accept trips.
+</Note>
+
+## Accessing Vehicle Management
+
+The vehicle management interface is located in the sidebar menu:
+
+<Steps>
+  <Step title="Open Sidebar">
+    Tap the menu icon (☰) or swipe from the left edge of the screen to open the navigation sidebar.
+  </Step>
+
+  <Step title="Select Vehicle">
+    Navigate to the **Vehicle** section in the sidebar menu.
+  </Step>
+
+  <Step title="View Vehicle Screen">
+    The vehicle management screen displays all your registered vehicles and options to add new ones.
+  </Step>
+</Steps>
+
+## Vehicle Information Fields
+
+When registering a vehicle, you'll need to provide the following information:
+
+### Required Fields
+
+<Accordion title="Vehicle Make and Model">
+  The manufacturer and model of your vehicle (e.g., "Toyota Corolla", "Honda Civic"). This helps passengers identify your car.
+  
+  - Select from a predefined list of popular makes
+  - Choose the specific model from available options
+  - Some systems may allow custom entry for less common vehicles
+</Accordion>
+
+<Accordion title="Year">
+  The manufacturing year of your vehicle. This may be used to:
+  
+  - Verify vehicle age requirements
+  - Determine insurance rates
+  - Apply regulatory compliance checks
+  
+  <Warning>
+  Some jurisdictions have maximum vehicle age limits for ride-hailing services.
+  </Warning>
+</Accordion>
+
+<Accordion title="Color">
+  The primary exterior color of your vehicle. This is one of the easiest ways for passengers to identify your car at pickup.
+  
+  Common colors: White, Black, Silver, Gray, Blue, Red, Green, etc.
+</Accordion>
+
+<Accordion title="License Plate Number">
+  Your vehicle's registration plate number. This must match your official vehicle registration documents.
+  
+  - Enter the plate number exactly as it appears
+  - Include any special characters or spaces
+  - Double-check for accuracy before submitting
+  
+  <Tip>
+  Passengers will see this license plate number to confirm they're getting into the right vehicle.
+  </Tip>
+</Accordion>
+
+### Optional Fields
+
+<Accordion title="Vehicle Type/Category">
+  The category of your vehicle:
+  
+  - **Sedan**: Standard 4-door passenger car
+  - **SUV**: Sport utility vehicle with higher seating
+  - **Van**: Larger capacity vehicle for group rides
+  - **Luxury**: Premium vehicles for luxury ride tiers
+  
+  Vehicle type affects which trip requests you receive.
+</Accordion>
+
+<Accordion title="Passenger Capacity">
+  The maximum number of passengers your vehicle can safely transport:
+  
+  - Typically 1-4 for sedans
+  - Up to 6-7 for SUVs and vans
+  - Must comply with vehicle registration limits
+</Accordion>
+
+<Accordion title="Vehicle Photos">
+  Photos of your vehicle from multiple angles:
+  
+  - Front view
+  - Side view
+  - Rear view
+  - Interior
+  
+  Clear photos help passengers identify your vehicle and may be required for verification.
+</Accordion>
+
+## Adding a New Vehicle
+
+To register a new vehicle:
+
+<Steps>
+  <Step title="Navigate to Vehicle Screen">
+    Access the Vehicle section from the sidebar menu.
+  </Step>
+
+  <Step title="Tap Add Vehicle">
+    Look for an "Add Vehicle" or "+" button on the vehicle management screen.
+  </Step>
+
+  <Step title="Fill in Details">
+    Complete all required fields:
+    
+    - Vehicle make and model
+    - Year of manufacture
+    - Color
+    - License plate number
+    - Any additional required fields
+  </Step>
+
+  <Step title="Upload Documents">
+    You may need to upload supporting documents:
+    
+    - Vehicle registration certificate
+    - Insurance documents
+    - Safety inspection certificate
+    - Photos of the vehicle
+  </Step>
+
+  <Step title="Submit for Verification">
+    Submit your vehicle information for admin review and approval.
+    
+    <Note>
+    Vehicle verification typically takes 1-3 business days. You'll receive a notification when approved.
+    </Note>
+  </Step>
+</Steps>
+
+## Managing Existing Vehicles
+
+### Viewing Vehicle Details
+
+On the vehicle management screen, you can:
+
+- View all registered vehicles
+- See verification status (Pending, Approved, Rejected)
+- Check which vehicle is currently active
+- Review vehicle information and documents
+
+### Updating Vehicle Information
+
+If you need to update vehicle details:
+
+<Steps>
+  <Step title="Select the Vehicle">
+    Tap on the vehicle you want to update from your vehicle list.
+  </Step>
+
+  <Step title="Edit Information">
+    Make changes to any editable fields. Some fields may be locked after verification.
+  </Step>
+
+  <Step title="Re-submit for Verification">
+    If you change key details (like license plate), the vehicle may need re-verification.
+  </Step>
+</Steps>
+
+<Warning>
+Changing critical vehicle information (like license plate number) during an active trip may cause issues. Make updates when you're offline.
+</Warning>
+
+### Setting Active Vehicle
+
+If you have multiple vehicles:
+
+1. Go to the vehicle management screen
+2. Select the vehicle you want to use for trips
+3. Tap "Set as Active" or similar option
+4. The system updates `currentVehicleId` in your availability snapshot
+
+Only the active vehicle's information is shown to passengers when you accept trips.
+
+## Vehicle Verification Status
+
+Your vehicle goes through a verification process:
+
+<CardGroup cols={3}>
+  <Card title="Pending" icon="clock" color="yellow">
+    Your vehicle information has been submitted and is awaiting admin review.
+  </Card>
+  
+  <Card title="Approved" icon="circle-check" color="green">
+    Your vehicle has been verified and you can use it to accept trips.
+  </Card>
+  
+  <Card title="Rejected" icon="circle-xmark" color="red">
+    Your vehicle verification failed. Check the reason and resubmit with corrections.
+  </Card>
+</CardGroup>
+
+### Reasons for Rejection
+
+Common reasons vehicles are rejected:
+
+- **Blurry or unclear photos**: Upload higher quality images
+- **Mismatched information**: Ensure documents match entered details
+- **Expired documents**: Renew registration or insurance
+- **Vehicle too old**: Check age requirements for your region
+- **Incomplete information**: Fill in all required fields
+
+## Vehicle Requirements
+
+Before registering a vehicle, ensure it meets these requirements:
+
+<Accordion title="Age Requirements">
+  - Maximum vehicle age varies by region (typically 10-15 years)
+  - Calculate from manufacturing year, not registration year
+  - Some luxury tiers may have stricter age limits
+</Accordion>
+
+<Accordion title="Condition Standards">
+  - No significant body damage or rust
+  - All doors, windows, and locks functional
+  - Clean interior and exterior
+  - No strong odors (smoke, pets, etc.)
+  - Air conditioning working (in applicable climates)
+</Accordion>
+
+<Accordion title="Safety Requirements">
+  - Valid safety inspection certificate
+  - Working seatbelts for all passengers
+  - Functional lights (headlights, taillights, indicators)
+  - Adequate tire tread depth
+  - Working brakes and suspension
+</Accordion>
+
+<Accordion title="Legal Requirements">
+  - Valid vehicle registration
+  - Current insurance coverage
+  - Emissions testing (if required locally)
+  - Commercial or ride-hailing insurance endorsement
+  - Any required local permits or licenses
+</Accordion>
+
+## Technical Integration
+
+From the code, the vehicle management is accessed through the sidebar:
+
+- **Component**: `src/app/features/sidebar/vehicle/vehicle.component.ts`
+- **Route**: Likely `/vehicle` or `/sidebar/vehicle`
+- **Integration**: Links to availability system via `currentVehicleId` field
+
+### Vehicle ID in Availability
+
+Your active vehicle ID is stored in the availability snapshot:
+
+```typescript
+interface DriverAvailabilitySnapshot {
+  // ... other fields
+  currentVehicleId: UUID | null;
+}
+```
+
+This field:
+- Is set when you select an active vehicle
+- Is validated when you go online
+- Is included in trip assignments
+- Is shown to passengers when you accept their trip
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep Information Current" icon="sync">
+    Update your vehicle information immediately if anything changes (new plate, different color, etc.).
+  </Card>
+  
+  <Card title="Maintain Documentation" icon="file-lines">
+    Keep digital copies of all vehicle documents for quick re-verification if needed.
+  </Card>
+  
+  <Card title="Regular Vehicle Checks" icon="wrench">
+    Perform routine maintenance to ensure your vehicle always meets safety standards.
+  </Card>
+  
+  <Card title="Multiple Vehicles" icon="cars">
+    If you use multiple vehicles, always set the correct one as active before going online.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Can't go online - no vehicle registered">
+  Make sure you have:
+  
+  - At least one vehicle registered
+  - The vehicle has been verified and approved
+  - A vehicle is set as your current active vehicle
+  - `currentVehicleId` is not `null` in your availability snapshot
+</Accordion>
+
+<Accordion title="Vehicle stuck in pending status">
+  If verification is taking longer than expected:
+  
+  - Check for notifications or emails about required corrections
+  - Ensure all documents are uploaded and readable
+  - Contact support if pending for more than 3 business days
+  - Verify all information matches official documents
+</Accordion>
+
+<Accordion title="Changes not saving">
+  If your vehicle updates aren't being saved:
+  
+  - Check your internet connection
+  - Try closing and reopening the app
+  - Ensure you're not editing a verified vehicle's locked fields
+  - Look for validation error messages on the form
+</Accordion>
+
+## Related Topics
+
+- [Managing Your Availability](/guides/managing-availability) - Going online with your vehicle
+- [Driver Profile](/features/driver-profile) - Complete driver account setup

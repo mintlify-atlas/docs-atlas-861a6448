@@ -1,0 +1,229 @@
+---
+title: Accepting Trip Requests
+description: Learn how to accept and manage trip offers in the Rodando Driver app
+---
+
+When you're online and available, the Rodando Driver app will automatically send you trip requests from nearby passengers. This guide explains how to review and respond to these offers.
+
+## How Trip Offers Work
+
+When a passenger requests a ride, the system matches them with available drivers based on proximity and other factors. If you're selected, you'll receive a trip offer modal with all the trip details.
+
+<Note>
+Trip offers expire after a countdown timer (typically 20 seconds). You must respond before the timer runs out.
+</Note>
+
+## Understanding the Trip Offer Modal
+
+When you receive a trip offer, a modal window appears with the following information:
+
+<Steps>
+  <Step title="Countdown Timer">
+    At the top of the modal, you'll see a timer showing how many seconds you have to respond. The timer appears as:
+    
+    ```
+    ⏱️ 20s para responder
+    ```
+    
+    The timer counts down in real-time. If it reaches 0, the offer expires automatically.
+  </Step>
+
+  <Step title="Trip Summary">
+    The modal displays key trip metrics:
+    
+    - **Distance**: Total distance from pickup to destination (e.g., "5.2 km")
+    - **Duration**: Estimated trip duration (e.g., "12 min")
+    
+    These are calculated from the route data and help you decide if the trip fits your preferences.
+  </Step>
+
+  <Step title="Route Information">
+    The pickup and dropoff locations are clearly marked:
+    
+    - **Origin** (🧭 icon): Where you'll pick up the passenger
+    - **Destination** (📍 icon): Where you'll drop off the passenger
+    
+    Full addresses are displayed for both locations.
+  </Step>
+
+  <Step title="Payment Details">
+    The payment section shows:
+    
+    - **Payment method**: Currently supports cash payments (💵 Efectivo)
+    - **Estimated fare**: The expected fare for this trip
+    
+    The fare shown is an estimate based on distance, duration, and current pricing.
+  </Step>
+</Steps>
+
+## Accepting a Trip Offer
+
+To accept a trip offer:
+
+<Steps>
+  <Step title="Review the Details">
+    Quickly review the pickup location, destination, distance, and fare to ensure you want to take this trip.
+  </Step>
+
+  <Step title="Tap Accept">
+    Click the green **"Aceptar"** button at the bottom of the modal.
+    
+    <Tip>
+    Make sure to accept before the countdown timer reaches 0, or the offer will expire.
+    </Tip>
+  </Step>
+
+  <Step title="Navigate to Active Trip">
+    Once accepted, the app automatically:
+    
+    - Closes the offer modal
+    - Updates your trip phase to "assigned"
+    - Navigates you to `/trips/active` where you can see the active trip details
+    - Sends confirmation to the backend via `acceptAssignment()` API call
+  </Step>
+</Steps>
+
+### What Happens After Accepting
+
+From the code in `trip.facade.ts:140-174`, when you accept an offer:
+
+1. The countdown timer stops
+2. The system calls the backend API to confirm acceptance
+3. Your trip data refreshes to show the latest information
+4. The assignment is marked as handled to prevent duplicate offers
+5. Your phase changes to "assigned"
+6. You're redirected to the active trip screen
+
+## Declining a Trip Offer
+
+If you don't want to accept a particular trip:
+
+<Steps>
+  <Step title="Tap Decline">
+    Click the **"Rechazar"** button on the left side of the modal.
+  </Step>
+
+  <Step title="Confirmation">
+    The system immediately:
+    
+    - Stops the countdown timer
+    - Sends a decline notification to the backend via `declineAssignment()` API
+    - Closes the offer modal
+    - Returns you to idle status, ready for the next offer
+  </Step>
+</Steps>
+
+<Warning>
+Declining too many trips may affect your driver rating or availability in the matching algorithm. Only decline if you have a valid reason.
+</Warning>
+
+## Offer Expiration
+
+If you don't respond within the countdown period:
+
+- The offer automatically expires when the timer reaches 0 seconds
+- The modal closes automatically with a "timeout" status
+- The trip is offered to another driver
+- You remain available for new trip offers
+
+<Note>
+The system prevents duplicate offers by tracking handled assignments using `markAssignmentHandled()` with the unique `assignmentId`.
+</Note>
+
+## Technical Details
+
+### Countdown Mechanism
+
+The countdown timer works by:
+
+1. Receiving an `expiresAt` ISO timestamp or `ttlSec` value from the server
+2. Calculating remaining seconds: `(expiresAt - now) / 1000`
+3. Ticking down every second using RxJS `interval(1000)`
+4. Auto-closing the modal when reaching 0
+
+From `trip.facade.ts:499-524`:
+
+```typescript
+startCountdown(opts: { expiresAtIso?: string; ttlSec?: number }) {
+  let remaining = 0;
+  if (opts.expiresAtIso) {
+    remaining = Math.max(0, 
+      Math.floor((Date.parse(opts.expiresAtIso) - Date.now()) / 1000)
+    );
+  } else if (typeof opts.ttlSec === 'number') {
+    remaining = Math.max(0, Math.floor(opts.ttlSec));
+  } else {
+    remaining = 20;
+  }
+  
+  this.store.setOfferCountdown(opts.expiresAtIso ?? null, remaining);
+  
+  this.countdownSub = interval(1000).subscribe(async () => {
+    this.store.tickCountdown();
+    if (this.store.state().remainingSec <= 0) {
+      await this.modalSvc.close('timeout');
+    }
+  });
+}
+```
+
+### State Management
+
+The app uses a centralized store to manage trip state. When an offer arrives:
+
+- `phase` is set to `'assigned'`
+- `activeTripId` is updated with the trip ID
+- `offerAssignmentId` stores the unique assignment identifier
+- The trip data is refreshed via `refreshTrip()`
+
+## Troubleshooting
+
+<Accordion title="The modal doesn't appear when I receive an offer">
+  This can happen if:
+  
+  - You're not in `idle` phase (already on a trip)
+  - The assignment was already handled (duplicate prevention)
+  - Your app lost connection to the WebSocket server
+  
+  Try going offline and back online to reset your status.
+</Accordion>
+
+<Accordion title="Buttons are disabled when the timer is still running">
+  The Accept and Decline buttons are only disabled when `remainingSec === 0`. If they're disabled while time remains, this may indicate a state synchronization issue. Try refreshing the app.
+</Accordion>
+
+<Accordion title="I accepted but nothing happened">
+  If the accept action fails:
+  
+  - Check your internet connection
+  - The trip may have been assigned to another driver
+  - An error message should appear in the UI from `store.setError()`
+  
+  The app will show an error message if the API call fails.
+</Accordion>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Respond Quickly" icon="clock">
+    Try to respond within the first 10 seconds to ensure you don't miss opportunities.
+  </Card>
+  
+  <Card title="Check the Route" icon="map">
+    Always verify the pickup location is within a reasonable distance before accepting.
+  </Card>
+  
+  <Card title="Monitor Your Phase" icon="signal">
+    You'll only receive offers when in `idle` phase. Complete or cancel current trips to receive new ones.
+  </Card>
+  
+  <Card title="Stay Connected" icon="wifi">
+    Offers arrive via WebSocket. A stable internet connection ensures you don't miss trip requests.
+  </Card>
+</CardGroup>
+
+## Related Topics
+
+- [Managing Your Availability](/guides/managing-availability) - Learn how to go online/offline
+- [Trip Management](/features/trip-management) - Complete trip lifecycle and phases
+- [Real-Time Updates](/features/real-time-updates) - WebSocket events for trip offers

@@ -1,0 +1,362 @@
+---
+title: 'Architecture Overview'
+description: 'Comprehensive overview of the Rodando Driver app architecture, including folder structure, core modules, and design patterns'
+icon: 'sitemap'
+---
+
+## Overview
+
+The Rodando Driver application is built with **Angular 17+** and **Ionic Framework**, following a modern, modular architecture designed for maintainability and scalability. The app implements a feature-based folder structure with clear separation of concerns.
+
+## Project Structure
+
+```plaintext
+src/app/
+├── components/           # Shared UI components (presentational)
+├── core/                 # Singleton services, guards, interceptors
+│   ├── config/          # App configuration
+│   ├── debug/           # Logger service
+│   ├── guards/          # Route guards (auth, guest)
+│   ├── interceptors/    # HTTP interceptors (auth, error handling)
+│   ├── models/          # TypeScript interfaces and types
+│   ├── providers/       # Angular providers
+│   ├── services/        # Core services (HTTP, WebSocket, storage)
+│   └── utils/           # Helper utilities
+├── features/            # Feature modules (lazy-loaded)
+│   ├── auth/           # Authentication flows (login, register)
+│   ├── driver/         # Driver-specific features
+│   ├── sidebar/        # Sidebar pages (profile, wallet, settings)
+│   ├── tabs/           # Tab-based pages (home, trips, earnings)
+│   └── trip/           # Trip-related components
+├── shared/              # Shared resources
+│   ├── components/     # Reusable components
+│   └── layouts/        # Layout components (default, map)
+├── store/               # State management (NgRx signals)
+│   ├── auth/           # Authentication state
+│   ├── driver-availability/
+│   ├── notification-alerts/
+│   ├── sessions/
+│   ├── trip/           # Trip state
+│   └── users/
+├── app.component.ts     # Root component
+└── app.routes.ts        # Route configuration
+```
+
+<Info>
+  The architecture follows Angular's **standalone components** approach, eliminating the need for NgModules and enabling tree-shaking for smaller bundle sizes.
+</Info>
+
+## Architectural Principles
+
+### 1. Feature-Based Organization
+
+The codebase is organized by **features** rather than technical layers. Each feature module is self-contained and can be lazy-loaded:
+
+```typescript
+// Example: Lazy-loaded feature from app.routes.ts
+{
+  path: 'trips',
+  loadComponent: () => import('./features/tabs/trips/trips.component'),
+  children: [
+    {
+      path: 'active',
+      loadComponent: () =>
+        import('./features/tabs/trips/active/active.component'),
+      data: { title: 'Viaje Activo', tab: 'trips' },
+    },
+    // ...
+  ],
+}
+```
+
+<Note>
+  **Benefits**: Improved code organization, faster initial load times, better developer experience with clear boundaries between features.
+</Note>
+
+### 2. Core Module Pattern
+
+The `core/` directory contains **singleton services** that should only be instantiated once:
+
+- **Guards**: `authGuardWithRefresh`, `guestGuard` for route protection
+- **Interceptors**: HTTP request/response transformation
+  - `auth.interceptor.ts` - Adds JWT tokens to requests
+  - `api-error.interceptor.ts` - Centralizes error handling
+  - `http-logging.interceptor.ts` - Request/response logging
+- **Services**: Business logic and data access
+  - HTTP services for API communication
+  - WebSocket service for real-time updates
+  - Storage services for persistence
+
+### 3. Shared Components
+
+Reusable UI components live in two locations:
+
+- `app/components/` - Application-wide shared components
+- `app/shared/components/` - Cross-feature reusable components
+
+**Examples**:
+- `base-map` - Map integration component
+- `content-card` - Card layout component
+- `floating-button` - FAB component
+- `reusable-modal` - Generic modal wrapper
+- `dinamic-header` - Dynamic header component
+
+### 4. Layout Components
+
+The app uses **layout components** to provide consistent UI structure:
+
+#### Default Layout
+```typescript:src/app/shared/layouts/default-layout/default-layout.component.ts
+@Component({
+  selector: 'app-default-layout',
+  templateUrl: './default-layout.component.html',
+  styleUrls: ['./default-layout.component.scss'],
+  standalone: true,
+  imports: [IonHeader, FloatingButtonComponent, IonRouterOutlet, 
+            IonFooter, IonToolbar, IonButton, IonIcon, RouterModule, IonContent],
+})
+export class DefaultLayoutComponent implements OnInit {
+  // Provides: Header + Content + TabBar + Sidebar
+}
+```
+
+**Layouts available**:
+- `DefaultLayoutComponent` - Standard layout with header, tabs, and sidebar
+- `MapLayoutComponent` - Fullscreen layout for map views
+
+## Lazy Loading Strategy
+
+<Steps>
+  <Step title="Route-based code splitting">
+    Features are lazy-loaded using Angular's `loadComponent` and `loadChildren` APIs.
+  </Step>
+  
+  <Step title="On-demand module loading">
+    Only the code needed for the current route is downloaded and parsed.
+  </Step>
+  
+  <Step title="Preloading strategies">
+    Critical routes can be preloaded in the background after initial render.
+  </Step>
+</Steps>
+
+### Example: Auth Module Lazy Loading
+
+```typescript:src/app/app.routes.ts
+{
+  path: 'auth',
+  loadComponent: () => import('./features/auth/auth.component'),
+  canActivate: [guestGuard],
+  canLoad: [guestGuardCanLoad],
+  children: [
+    {
+      path: '',
+      loadChildren: () => import('./features/auth/auth.routes'),
+    },
+  ],
+}
+```
+
+<Warning>
+  **Important**: Lazy-loaded routes are protected by guards (`canActivate`, `canLoad`) to prevent unauthorized access before the module is loaded.
+</Warning>
+
+## Dependency Injection
+
+The app uses Angular's modern **`inject()` function** for dependency injection:
+
+```typescript
+// Modern approach (inject function)
+import { inject, Injectable } from '@angular/core';
+
+@Injectable({ providedIn: 'root' })
+export class TripFacade {
+  private store = inject(TripStore);
+  private tripsApi = inject(TripApiService);
+  private ws = inject(DriverWsService);
+  // ...
+}
+```
+
+<Info>
+  The `inject()` function enables better tree-shaking and allows dependency injection outside of constructor parameters.
+</Info>
+
+## Core Services Architecture
+
+### HTTP Services
+
+All HTTP communication goes through dedicated service classes:
+
+- `AuthService` - Authentication endpoints
+- `TripApiService` - Trip CRUD operations
+- `SecureStorageService` - Secure data persistence
+
+Services are decorated with `@Injectable({ providedIn: 'root' })` to ensure singleton instances.
+
+### WebSocket Service
+
+Real-time communication is handled by `DriverWsService` using Socket.io:
+
+```typescript:src/app/core/services/socket/driver-ws.service.ts.ts
+@Injectable({ providedIn: 'root' })
+export class DriverWsService {
+  private socket?: Socket;
+  
+  // Observable streams for real-time events
+  readonly onOffer$ = new Subject<OfferPayload>();
+  readonly onDriverAssigned$ = new Subject<DriverAssignedPayload>();
+  readonly onTripStarted$ = new Subject<TripStartedPayload>();
+  readonly onTripCompleted$ = new Subject<TripCompletedPayload>();
+  // ...
+}
+```
+
+## Error Handling
+
+### Centralized Error Interceptor
+
+All HTTP errors are intercepted and normalized:
+
+```typescript:src/app/core/interceptors/api-error.interceptor.ts
+// Handles:
+// - Network errors
+// - API error responses
+// - Validation errors
+// - Authentication errors (401/403)
+```
+
+### State-level Error Handling
+
+Each store maintains its own error state:
+
+```typescript
+export interface AuthState {
+  accessToken: string | null;
+  user: UserProfile | null;
+  loading: boolean;
+  error: any | null;  // ← Error state
+  // ...
+}
+```
+
+## Configuration Management
+
+Environment-specific configuration:
+
+```typescript
+// src/environments/environment.ts
+export const environment = {
+  production: false,
+  apiBase: 'http://localhost:3000/api',
+  wsBase: 'ws://localhost:3000',
+  // ...
+};
+```
+
+## Development Tools
+
+### Logger Service
+
+Centralized logging for debugging:
+
+```typescript:src/app/core/debug/logger.service.ts
+// Provides structured logging with levels:
+// - debug()
+// - info()
+// - warn()
+// - error()
+```
+
+### HTTP Logging Interceptor
+
+Logs all HTTP requests/responses in development:
+
+```typescript:src/app/core/interceptors/http-logging.interceptor.ts
+// Logs:
+// - Request URL, method, headers
+// - Response status, timing
+// - Errors with stack traces
+```
+
+## Performance Optimizations
+
+<CardGroup cols={2}>
+  <Card title="Lazy Loading" icon="rocket">
+    Features loaded on-demand, reducing initial bundle size by ~60%.
+  </Card>
+  
+  <Card title="Tree Shaking" icon="tree">
+    Standalone components enable better dead code elimination.
+  </Card>
+  
+  <Card title="Signal-based State" icon="signal">
+    Angular Signals provide fine-grained reactivity with minimal overhead.
+  </Card>
+  
+  <Card title="OnPush Detection" icon="bolt">
+    Components use OnPush change detection for better performance.
+  </Card>
+</CardGroup>
+
+## Security Patterns
+
+1. **JWT Authentication**: Tokens stored securely, automatically attached to requests
+2. **Route Guards**: Prevent unauthorized access to protected routes
+3. **HTTP-Only Cookies**: Refresh tokens stored in HTTP-only cookies (web)
+4. **Secure Storage**: Sensitive data encrypted in native storage (mobile)
+5. **CORS Protection**: API endpoints enforce origin validation
+
+## Testing Strategy
+
+Each architectural layer has corresponding test files:
+
+```plaintext
+*.component.spec.ts    # Component tests
+*.service.spec.ts      # Service tests
+*.guard.spec.ts        # Guard tests
+*.interceptor.spec.ts  # Interceptor tests
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routing Structure" icon="route" href="/development/routing-structure">
+    Learn about route configuration, guards, and navigation patterns.
+  </Card>
+  
+  <Card title="State Management" icon="database" href="/development/state-management">
+    Explore NgRx Signal Store implementation and state patterns.
+  </Card>
+  
+  <Card title="WebSocket Integration" icon="wifi" href="/development/websocket-integration">
+    Understand real-time communication architecture.
+  </Card>
+  
+  <Card title="API Integration" icon="plug" href="/api-reference/overview">
+    API endpoints and integration patterns.
+  </Card>
+</CardGroup>
+
+## Architectural Decisions
+
+### Why Standalone Components?
+
+- **Simpler mental model**: No NgModule boilerplate
+- **Better tree-shaking**: Unused components fully eliminated
+- **Faster compilation**: Smaller dependency graphs
+- **Future-proof**: Angular's recommended approach
+
+### Why Signal Store over NgRx Store?
+
+- **Simpler API**: Less boilerplate, easier to learn
+- **Better performance**: Fine-grained reactivity
+- **Type safety**: Full TypeScript inference
+- **Smaller bundle**: No runtime dependencies
+
+### Why Feature-based folders?
+
+- **Scalability**: Easy to add new features without restructuring
+- **Team collaboration**: Clear ownership boundaries
+- **Code splitting**: Natural alignment with lazy loading
+- **Discoverability**: Related code lives together

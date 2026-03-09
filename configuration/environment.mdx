@@ -1,0 +1,300 @@
+---
+title: 'Environment Configuration'
+description: 'Configure environment variables for development and production builds'
+icon: 'gear'
+---
+
+## Overview
+
+Rodando Driver uses Angular's environment system to manage configuration across different build environments. The app supports separate configurations for development and production builds through environment files.
+
+## Environment Files
+
+The application uses two primary environment files:
+
+- `src/environments/environment.ts` - Development configuration
+- `src/environments/environment.prod.ts` - Production configuration
+
+<Note>
+Angular automatically replaces `environment.ts` with `environment.prod.ts` during production builds using the file replacement feature configured in `angular.json`.
+</Note>
+
+## Configuration Variables
+
+### Development Environment
+
+The development environment (`src/environments/environment.ts`) includes comprehensive configuration for local development:
+
+```typescript src/environments/environment.ts
+export const environment = {
+  production: false,
+  googleMapsApiKey: 'AIzaSyB7Gysu0aXgX5RT1AwTgVkOIEjAPsDE0Ik&libraries=places',
+  apiUrl: 'http://localhost:3000/api',
+  appAudience: 'driver_app',
+  expectedUserType: 'driver',
+  mapbox: {
+    accessToken: 'pk.eyJ1Ijoicm9kYW5kb2N1YmEiLCJhIjoiY21lYzZtMWF0MWJoaDJsb2YxNG56N2NmYiJ9.o5oPXGNXcut8PE0O7CG-VA'
+  },
+  debug: true,
+  debugTags: ['DA', 'HTTP', 'LOC'],
+  wsBase: 'ws://localhost:3000',
+};
+```
+
+### Production Environment
+
+The production environment (`src/environments/environment.prod.ts`) contains minimal configuration:
+
+```typescript src/environments/environment.prod.ts
+export const environment = {
+  production: true,
+  googleMapsApiKey: 'AIzaSyB7Gysu0aXgX5RT1AwTgVkOIEjAPsDE0Ik&libraries=places'
+};
+```
+
+<Warning>
+The production environment file should include all necessary variables for your production deployment. Update `apiUrl`, `wsBase`, and other runtime configurations before deploying.
+</Warning>
+
+## Environment Variables Reference
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `production` | `boolean` | Indicates if the app is running in production mode |
+| `googleMapsApiKey` | `string` | Google Maps API key with Places library enabled |
+| `apiUrl` | `string` | Base URL for API requests |
+| `appAudience` | `string` | Application audience identifier (e.g., 'driver_app') |
+| `expectedUserType` | `string` | Expected user type for authentication (e.g., 'driver') |
+| `mapbox.accessToken` | `string` | Mapbox access token for alternative map provider |
+| `debug` | `boolean` | Enable/disable debug mode |
+| `debugTags` | `string[]` | Array of debug tag filters |
+| `wsBase` | `string` | WebSocket base URL for real-time connections |
+
+## Setting Up Environments
+
+<Steps>
+  <Step title="Create Environment Files">
+    Ensure both environment files exist in your project:
+    
+    ```bash
+    src/environments/
+    ├── environment.ts        # Development
+    └── environment.prod.ts   # Production
+    ```
+  </Step>
+
+  <Step title="Configure Development Settings">
+    Update `src/environments/environment.ts` with your local development configuration:
+    
+    ```typescript
+    export const environment = {
+      production: false,
+      apiUrl: 'http://localhost:3000/api',  // Local API server
+      wsBase: 'ws://localhost:3000',         // Local WebSocket server
+      debug: true,                            // Enable debug logging
+      // ... other settings
+    };
+    ```
+  </Step>
+
+  <Step title="Configure Production Settings">
+    Update `src/environments/environment.prod.ts` with your production configuration:
+    
+    ```typescript
+    export const environment = {
+      production: true,
+      apiUrl: 'https://api.rodando.com/api',  // Production API
+      wsBase: 'wss://api.rodando.com',         // Production WebSocket
+      googleMapsApiKey: 'YOUR_PRODUCTION_API_KEY',
+      debug: false,                             // Disable debug in production
+      // ... other settings
+    };
+    ```
+  </Step>
+
+  <Step title="Verify File Replacement Configuration">
+    Check that `angular.json` includes the file replacement configuration:
+    
+    ```json angular.json
+    "configurations": {
+      "production": {
+        "fileReplacements": [
+          {
+            "replace": "src/environments/environment.ts",
+            "with": "src/environments/environment.prod.ts"
+          }
+        ]
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Using Environment Variables
+
+Import and use environment variables throughout your application:
+
+```typescript
+import { environment } from '../environments/environment';
+
+// Access configuration values
+const apiUrl = environment.apiUrl;
+const isProduction = environment.production;
+
+// Conditional logic based on environment
+if (environment.debug) {
+  console.log('Debug mode enabled');
+}
+```
+
+### Example: HTTP Service Configuration
+
+```typescript
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class ApiService {
+  private baseUrl = environment.apiUrl;
+
+  constructor(private http: HttpClient) {}
+
+  getDriverProfile() {
+    return this.http.get(`${this.baseUrl}/driver/profile`);
+  }
+}
+```
+
+## Building for Different Environments
+
+<Tabs>
+  <Tab title="Development">
+    Build for development (uses `environment.ts`):
+    
+    ```bash
+    ng build --configuration=development
+    ```
+    
+    Or run the development server:
+    
+    ```bash
+    npm start
+    # or
+    ng serve
+    ```
+  </Tab>
+
+  <Tab title="Production">
+    Build for production (uses `environment.prod.ts`):
+    
+    ```bash
+    ng build --configuration=production
+    # or
+    npm run build
+    ```
+    
+    This automatically:
+    - Replaces `environment.ts` with `environment.prod.ts`
+    - Enables optimizations
+    - Minifies code
+    - Removes debug code
+  </Tab>
+</Tabs>
+
+## Debug Configuration
+
+The development environment includes debug settings:
+
+```typescript
+{
+  debug: true,                     // Enable debug mode
+  debugTags: ['DA', 'HTTP', 'LOC'] // Filter debug output by tags
+}
+```
+
+### Debug Tags
+
+| Tag | Description |
+|-----|-------------|
+| `DA` | Driver App general debugging |
+| `HTTP` | HTTP request/response logging |
+| `LOC` | Location and GPS debugging |
+
+<Warning>
+Always set `debug: false` in production to avoid performance issues and prevent sensitive information from being logged.
+</Warning>
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Never Commit Secrets">
+    Do not commit sensitive API keys or tokens to version control. Use environment-specific files that are gitignored or environment variables.
+  </Step>
+
+  <Step title="Use Different Keys for Environments">
+    Use separate API keys for development and production:
+    - Development: Restricted test keys with quotas
+    - Production: Production keys with appropriate restrictions
+  </Step>
+
+  <Step title="Rotate Keys Regularly">
+    Regularly rotate API keys and access tokens, especially after team member changes.
+  </Step>
+
+  <Step title="Restrict API Key Usage">
+    Configure API key restrictions in Google Cloud Console:
+    - Application restrictions (Android/iOS bundle IDs)
+    - API restrictions (enable only required APIs)
+    - Usage quotas and alerts
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Wrong Environment Being Used
+
+If the wrong environment file is being used:
+
+1. Check your build configuration in `angular.json`
+2. Verify file replacements are configured correctly
+3. Clear the build cache: `rm -rf www/ .angular/`
+4. Rebuild: `ng build --configuration=production`
+
+### Environment Variables Not Updating
+
+1. Stop the development server
+2. Clear Angular cache: `rm -rf .angular/`
+3. Restart: `npm start`
+
+### Missing Environment Variables
+
+If you encounter errors about missing environment properties:
+
+1. Ensure both `environment.ts` and `environment.prod.ts` have the same property structure
+2. Add any missing properties to both files
+3. Use TypeScript interfaces to enforce consistency:
+
+```typescript
+export interface Environment {
+  production: boolean;
+  apiUrl: string;
+  googleMapsApiKey: string;
+  // ... other properties
+}
+
+export const environment: Environment = {
+  // ... configuration
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Google Maps Setup" icon="map" href="/configuration/google-maps">
+    Configure Google Maps API key and map options
+  </Card>
+  <Card title="Capacitor Config" icon="mobile" href="/configuration/capacitor">
+    Set up Capacitor for native mobile builds
+  </Card>
+</CardGroup>

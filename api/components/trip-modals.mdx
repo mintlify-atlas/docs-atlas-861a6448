@@ -1,0 +1,433 @@
+---
+title: 'Trip Modal Components'
+description: 'Modal components for trip assignment, order confirmation, and waiting penalty notifications'
+---
+
+## Overview
+
+The Rodando Driver app includes three specialized modal components for handling trip-related interactions. These components are built with Ionic Angular and use the `ModalController` for presentation and dismissal.
+
+## TripAssignedModalComponent
+
+Displays trip details when a new trip is assigned to a driver, with a countdown timer for acceptance.
+
+### Component Metadata
+
+<ParamField path="selector" type="string" default="app-trip-assigned-modal">
+  The component selector
+</ParamField>
+
+<ParamField path="standalone" type="boolean" default="true">
+  Standalone component that can be imported directly
+</ParamField>
+
+<ParamField path="changeDetection" type="ChangeDetectionStrategy" default="OnPush">
+  Uses OnPush change detection for optimal performance
+</ParamField>
+
+### Features
+
+- **Countdown timer**: Shows remaining seconds to accept/decline the trip
+- **Trip summary**: Displays distance and duration estimates
+- **Route visualization**: Shows origin and destination addresses with icons
+- **Payment information**: Displays payment method and estimated price
+- **Action buttons**: Accept or Decline buttons that integrate with `TripFacade`
+
+### State Management
+
+The component uses NgRx facade pattern:
+
+```typescript
+private facade = inject(TripFacade);
+vm = this.facade.modalVm; // Computed signal with trip data
+```
+
+### Modal View Model
+
+The `modalVm` signal provides:
+
+<ParamField path="vm.remainingSec" type="number | null">
+  Remaining seconds for the driver to respond
+</ParamField>
+
+<ParamField path="vm.distanceText" type="string">
+  Formatted distance text (e.g., "5.2 km")
+</ParamField>
+
+<ParamField path="vm.durationText" type="string">
+  Formatted duration text (e.g., "15 min")
+</ParamField>
+
+<ParamField path="vm.originLabel" type="string">
+  Origin address or location name
+</ParamField>
+
+<ParamField path="vm.destinationLabel" type="string">
+  Destination address or location name
+</ParamField>
+
+<ParamField path="vm.priceText" type="string">
+  Formatted price text with currency
+</ParamField>
+
+### Methods
+
+<ParamField path="onAccept()" type="() => void">
+  Accepts the trip offer by calling `facade.acceptOffer()`
+</ParamField>
+
+<ParamField path="onDecline()" type="() => void">
+  Declines the trip offer by calling `facade.declineOffer()`
+</ParamField>
+
+### Usage Example
+
+```typescript
+import { ModalController } from '@ionic/angular';
+import { TripAssignedModalComponent } from '@/app/shared/components/trip-assigned-modal.component/trip-assigned-modal.component';
+
+export class TripService {
+  constructor(private modalCtrl: ModalController) {}
+
+  async showTripAssignment() {
+    const modal = await this.modalCtrl.create({
+      component: TripAssignedModalComponent,
+      cssClass: 'trip-assigned-modal',
+      backdropDismiss: false
+    });
+
+    await modal.present();
+    const result = await modal.onDidDismiss();
+    // Handle result
+  }
+}
+```
+
+---
+
+## DriverConfirmOrderModalComponent
+
+Allows drivers to confirm payment collection at the end of a trip, including base fare, waiting charges, and payment method.
+
+### Component Metadata
+
+<ParamField path="selector" type="string" default="app-driver-confirm-order-modal">
+  The component selector
+</ParamField>
+
+<ParamField path="standalone" type="boolean" default="true">
+  Standalone component that can be imported directly
+</ParamField>
+
+### Input Properties
+
+#### Passenger Information
+
+<ParamField path="passengerName" type="string" default="'Pasajero'">
+  The name of the passenger for this trip
+</ParamField>
+
+#### Route Information
+
+<ParamField path="originLabel" type="string" default="''">
+  The origin address or location name
+</ParamField>
+
+<ParamField path="destinationLabel" type="string" default="''">
+  The destination address or location name
+</ParamField>
+
+<ParamField path="distanceText" type="string" default="'—'">
+  Formatted distance text (e.g., "8.5 km")
+</ParamField>
+
+<ParamField path="durationText" type="string" default="'—'">
+  Formatted duration text (e.g., "20 min")
+</ParamField>
+
+#### Pricing Information
+
+<ParamField path="base" type="number | null" default="null">
+  The base fare amount for the trip
+</ParamField>
+
+<ParamField path="waitingExtra" type="number | null" default="null">
+  Additional charge for waiting time, if applicable
+</ParamField>
+
+<ParamField path="total" type="number | null" default="null">
+  Total amount to charge the passenger
+</ParamField>
+
+<ParamField path="currency" type="string" default="'CUP'">
+  Currency code for displaying amounts
+</ParamField>
+
+#### Waiting Information
+
+<ParamField path="waitingReason" type="string | null" default="null">
+  Optional reason for the waiting charge
+</ParamField>
+
+<ParamField path="waitingSeconds" type="number | null" default="null">
+  Number of seconds the driver waited
+</ParamField>
+
+#### Payment Method
+
+<ParamField path="paymentMode" type="'cash' | 'card' | 'wallet' | string" default="'cash'">
+  The payment method for this trip
+</ParamField>
+
+### Computed Properties
+
+<ParamField path="hasWaitingExtra" type="boolean" readonly>
+  Returns `true` if there is a waiting charge greater than zero
+</ParamField>
+
+<ParamField path="waitingClock" type="string" readonly>
+  Formats `waitingSeconds` as mm:ss (e.g., "05:30")
+</ParamField>
+
+### Methods
+
+<ParamField path="cancel()" type="() => void">
+  Dismisses the modal with `{ confirmed: false }` and role `'cancel'`
+</ParamField>
+
+<ParamField path="confirm()" type="() => void">
+  Dismisses the modal with `{ confirmed: true }` and role `'confirm'`
+</ParamField>
+
+### Usage Example
+
+```typescript
+import { ModalController } from '@ionic/angular';
+import { DriverConfirmOrderModalComponent } from '@/app/shared/components/driver-confirm-order-modal/driver-confirm-order-modal.component';
+
+export class TripService {
+  constructor(private modalCtrl: ModalController) {}
+
+  async confirmPayment(tripData: any) {
+    const modal = await this.modalCtrl.create({
+      component: DriverConfirmOrderModalComponent,
+      componentProps: {
+        passengerName: tripData.passenger.name,
+        originLabel: tripData.origin.address,
+        destinationLabel: tripData.destination.address,
+        distanceText: tripData.distance,
+        durationText: tripData.duration,
+        base: tripData.pricing.base,
+        waitingExtra: tripData.pricing.waitingCharge,
+        total: tripData.pricing.total,
+        currency: 'CUP',
+        waitingSeconds: tripData.waitingTime,
+        waitingReason: tripData.waitingReason,
+        paymentMode: tripData.paymentMethod
+      },
+      cssClass: 'confirm-order-modal'
+    });
+
+    await modal.present();
+    const { data, role } = await modal.onDidDismiss();
+    
+    if (role === 'confirm' && data?.confirmed) {
+      // Process payment confirmation
+    }
+  }
+}
+```
+
+---
+
+## DriverWaitingPenaltyModalComponent
+
+Notifies the driver about waiting penalties when a passenger delays pickup, showing real-time waiting duration and associated charges.
+
+### Component Metadata
+
+<ParamField path="selector" type="string" default="app-driver-waiting-penalty-modal">
+  The component selector
+</ParamField>
+
+<ParamField path="standalone" type="boolean" default="true">
+  Standalone component that can be imported directly
+</ParamField>
+
+### Input Properties
+
+#### Passenger Information
+
+<ParamField path="passengerName" type="string" default="'Pasajero'">
+  The name of the passenger
+</ParamField>
+
+#### Pricing Information
+
+<ParamField path="base" type="number | null" default="null">
+  The base fare for the trip
+</ParamField>
+
+<ParamField path="extra" type="number | null" default="null">
+  The additional waiting penalty charge
+</ParamField>
+
+<ParamField path="total" type="number | null" default="null">
+  Total fare including waiting penalty
+</ParamField>
+
+<ParamField path="currency" type="string" default="'CUP'">
+  Currency code for displaying amounts
+</ParamField>
+
+#### Waiting Information
+
+<ParamField path="waitingSeconds" type="number" default="0">
+  Current waiting duration in seconds (can be updated in real-time)
+</ParamField>
+
+<ParamField path="waitingReason" type="string | null" default="null">
+  Optional reason for the waiting situation
+</ParamField>
+
+### Properties
+
+<ParamField path="clock" type="string" default="'00:00'">
+  Formatted waiting time display in mm:ss format
+</ParamField>
+
+### Lifecycle Hooks
+
+<ParamField path="ngOnInit()" type="() => void">
+  Initializes the clock display on component initialization
+</ParamField>
+
+<ParamField path="ngOnChanges(changes: SimpleChanges)" type="(changes: SimpleChanges) => void">
+  Updates the clock display when `waitingSeconds` input changes, enabling real-time updates
+</ParamField>
+
+### Methods
+
+<ParamField path="onConfirm()" type="() => void">
+  Dismisses the modal with `{ action: 'confirm' }` - driver confirms the waiting penalty
+</ParamField>
+
+<ParamField path="onReject()" type="() => void">
+  Dismisses the modal with `{ action: 'reject' }` - driver disputes the waiting penalty
+</ParamField>
+
+### Private Methods
+
+<ParamField path="updateClock()" type="() => void" private>
+  Updates the `clock` property by converting `waitingSeconds` to mm:ss format
+</ParamField>
+
+### Usage Example
+
+```typescript
+import { ModalController } from '@ionic/angular';
+import { DriverWaitingPenaltyModalComponent } from '@/app/shared/components/driver-waiting-penalty-modal/driver-waiting-penalty-modal.component';
+
+export class TripService {
+  constructor(private modalCtrl: ModalController) {}
+
+  async showWaitingPenalty(tripData: any) {
+    const modal = await this.modalCtrl.create({
+      component: DriverWaitingPenaltyModalComponent,
+      componentProps: {
+        passengerName: tripData.passenger.name,
+        base: tripData.pricing.base,
+        extra: tripData.pricing.waitingPenalty,
+        total: tripData.pricing.total,
+        currency: 'CUP',
+        waitingSeconds: tripData.waitingTime,
+        waitingReason: 'Passenger delayed at pickup location'
+      },
+      cssClass: 'waiting-penalty-modal',
+      backdropDismiss: false
+    });
+
+    await modal.present();
+    
+    // Optional: Update waiting time in real-time
+    const interval = setInterval(() => {
+      modal.componentProps = {
+        ...modal.componentProps,
+        waitingSeconds: modal.componentProps.waitingSeconds + 1
+      };
+    }, 1000);
+
+    const { data } = await modal.onDidDismiss();
+    clearInterval(interval);
+    
+    if (data?.action === 'confirm') {
+      // Apply waiting penalty
+    } else if (data?.action === 'reject') {
+      // Handle penalty rejection
+    }
+  }
+}
+```
+
+### Real-time Updates
+
+The component implements `OnChanges` to support real-time waiting time updates:
+
+```typescript
+// Update the modal's waiting time dynamically
+await modal.componentProps = {
+  ...modal.componentProps,
+  waitingSeconds: newWaitingSeconds
+};
+```
+
+The clock display automatically updates when `waitingSeconds` changes.
+
+## Common Patterns
+
+### Modal Styling
+
+All trip modal components can be customized with CSS classes:
+
+```typescript
+const modal = await this.modalCtrl.create({
+  component: TripAssignedModalComponent,
+  cssClass: ['trip-modal', 'custom-modal'],
+  // Additional options
+});
+```
+
+### Handling Dismissal
+
+All modals return data on dismissal:
+
+```typescript
+const { data, role } = await modal.onDidDismiss();
+
+switch (role) {
+  case 'confirm':
+    // Handle confirmation
+    break;
+  case 'cancel':
+    // Handle cancellation
+    break;
+}
+```
+
+### Preventing Dismissal
+
+For critical decisions, prevent backdrop dismissal:
+
+```typescript
+const modal = await this.modalCtrl.create({
+  component: TripAssignedModalComponent,
+  backdropDismiss: false,
+  // Force user to make a decision
+});
+```
+
+## Source Code References
+
+- **TripAssignedModalComponent**: `src/app/shared/components/trip-assigned-modal.component/`
+- **DriverConfirmOrderModalComponent**: `src/app/shared/components/driver-confirm-order-modal/`
+- **DriverWaitingPenaltyModalComponent**: `src/app/shared/components/driver-waiting-penalty-modal/`

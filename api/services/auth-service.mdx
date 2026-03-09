@@ -1,0 +1,270 @@
+---
+title: AuthService
+description: Authentication service for login, token refresh, and user profile management
+icon: lock
+---
+
+## Overview
+
+The `AuthService` handles all authentication operations including login, token refresh (for both web and mobile sessions), logout, and user profile retrieval.
+
+**Location**: `src/app/core/services/http/auth.service.ts`
+
+## Public Methods
+
+### login()
+
+Authenticates a user with email/phone and password.
+
+<ParamField path="payload" type="LoginPayload" required>
+  Login credentials and device information
+  
+  <Expandable title="LoginPayload Properties">
+    <ParamField path="email" type="string">
+      User email address (required if phone not provided)
+    </ParamField>
+    <ParamField path="phone" type="string">
+      User phone number (required if email not provided)
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      User password
+    </ParamField>
+    <ParamField path="location" type="Location">
+      Current user location coordinates
+    </ParamField>
+    <ParamField path="appAudience" type="AppAudience">
+      Application audience (e.g., 'DRIVER_APP')
+    </ParamField>
+    <ParamField path="userType" type="UserType">
+      Type of user logging in
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="httpOptions" type="object">
+  Optional HTTP configuration
+  
+  <Expandable title="Options">
+    <ParamField path="withCredentials" type="boolean">
+      Include credentials for cookie-based auth (default: false)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns**: `Observable<LoginResponse>`
+
+<ResponseField name="accessToken" type="string">
+  JWT access token for API requests
+</ResponseField>
+
+<ResponseField name="sessionType" type="SessionType">
+  Session type: 'MOBILE' or 'WEB'
+</ResponseField>
+
+<ResponseField name="refreshToken" type="string">
+  Refresh token (only present for MOBILE sessions)
+</ResponseField>
+
+<ResponseField name="accessTokenExpiresAt" type="number">
+  Timestamp when access token expires
+</ResponseField>
+
+<ResponseField name="user" type="UserProfile">
+  Authenticated user profile data
+</ResponseField>
+
+**Example**:
+
+```typescript src/app/features/auth/login/login.component.ts
+import { AuthService } from '@/app/core/services/http/auth.service';
+import { inject } from '@angular/core';
+
+export class LoginComponent {
+  private authService = inject(AuthService);
+
+  login(email: string, password: string) {
+    const payload: LoginPayload = {
+      email,
+      password,
+      appAudience: 'DRIVER_APP',
+      userType: 'DRIVER'
+    };
+
+    this.authService.login(payload, { withCredentials: true })
+      .subscribe({
+        next: (response) => {
+          console.log('Login successful:', response);
+          // Store tokens and navigate to dashboard
+        },
+        error: (error) => {
+          console.error('Login failed:', error.message);
+        }
+      });
+  }
+}
+```
+
+### refresh()
+
+Refreshes the access token using either a refresh token (mobile) or HTTP-only cookie (web).
+
+<ParamField path="refreshToken" type="string">
+  Refresh token (required for mobile sessions)
+</ParamField>
+
+<ParamField path="useCookie" type="boolean">
+  Use HTTP-only cookie for refresh (default: false)
+</ParamField>
+
+**Returns**: `Observable<RefreshResponse>`
+
+<Tabs>
+  <Tab title="Web Session">
+    For web sessions, the refresh token is stored in an HTTP-only cookie:
+    
+    ```typescript
+    this.authService.refresh(undefined, true).subscribe({
+      next: (response: RefreshResponseWeb) => {
+        // Access token refreshed
+        console.log('New access token:', response.accessToken);
+      },
+      error: (error) => {
+        // Redirect to login
+      }
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Mobile Session">
+    For mobile sessions, pass the refresh token explicitly:
+    
+    ```typescript
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+    
+    this.authService.refresh(storedRefreshToken, false).subscribe({
+      next: (response: RefreshResponseMobile) => {
+        // Store new tokens
+        localStorage.setItem('accessToken', response.accessToken);
+        localStorage.setItem('refreshToken', response.refreshToken);
+      },
+      error: (error) => {
+        // Redirect to login
+      }
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### logoutWeb()
+
+Logs out a web session by clearing the HTTP-only refresh token cookie.
+
+**Returns**: `Observable<void>`
+
+```typescript
+this.authService.logoutWeb().subscribe({
+  next: () => {
+    console.log('Logged out successfully');
+    // Redirect to login page
+  },
+  error: (error) => {
+    console.error('Logout failed:', error);
+  }
+});
+```
+
+### logoutMobile()
+
+Logs out a mobile session by invalidating the refresh token.
+
+<ParamField path="refreshToken" type="string" required>
+  The refresh token to invalidate
+</ParamField>
+
+**Returns**: `Observable<void>`
+
+```typescript
+const refreshToken = localStorage.getItem('refreshToken');
+
+this.authService.logoutMobile(refreshToken).subscribe({
+  next: () => {
+    // Clear local storage
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    // Redirect to login
+  }
+});
+```
+
+### me()
+
+Retrieves the authenticated user's profile information.
+
+<ParamField path="useCookie" type="boolean">
+  Use HTTP-only cookie for authentication (default: true)
+</ParamField>
+
+**Returns**: `Observable<UserProfile>`
+
+```typescript
+this.authService.me(true).subscribe({
+  next: (profile) => {
+    console.log('User profile:', profile);
+    this.displayName = profile.firstName + ' ' + profile.lastName;
+  },
+  error: (error) => {
+    console.error('Failed to load profile:', error);
+  }
+});
+```
+
+## Error Handling
+
+All methods return normalized `ApiError` objects with the following structure:
+
+```typescript
+interface ApiError {
+  status?: number;           // HTTP status code
+  message: string;           // Error message
+  code?: string;            // Application error code
+  validation?: any;         // Validation errors
+  raw?: any;               // Original error object
+  url?: string | null;     // Request URL
+}
+```
+
+**Example error handling**:
+
+```typescript
+this.authService.login(payload).subscribe({
+  error: (error: ApiError) => {
+    if (error.status === 401) {
+      this.errorMessage = 'Invalid email or password';
+    } else if (error.code === 'USER_SUSPENDED') {
+      this.errorMessage = 'Your account has been suspended';
+    } else {
+      this.errorMessage = error.message || 'Login failed';
+    }
+  }
+});
+```
+
+## Best Practices
+
+<Note>
+**Session Type Selection**: Use web sessions with HTTP-only cookies for browser-based apps, and mobile sessions with explicit token storage for native mobile apps.
+</Note>
+
+<Tip>
+**Token Refresh**: Implement automatic token refresh 30-60 seconds before expiration to ensure seamless user experience.
+</Tip>
+
+<Warning>
+**Security**: Never store refresh tokens in localStorage for web sessions. Always use HTTP-only cookies to prevent XSS attacks.
+</Warning>
+
+## Related Documentation
+
+- [Authentication Flow](/features/authentication)
+- [Auth Models](/api/models/auth-models)
+- [Auth Store](/api/state/auth-store)

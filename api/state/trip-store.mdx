@@ -1,0 +1,501 @@
+---
+title: 'TripStore'
+description: 'Signal-based state store for driver trip management'
+---
+
+## Overview
+
+The `TripStore` is an Angular injectable service that manages the driver's trip state using Angular signals. It tracks trip phases, offer countdowns, passenger information, and dynamic fare calculations including waiting time penalties.
+
+## State Interface
+
+### DriverTripState
+
+<ResponseField name="status" type="'idle' | 'loading' | 'success' | 'error'">
+  Current loading status of trip operations
+</ResponseField>
+
+<ResponseField name="error" type="string | null">
+  Error message if any operation failed
+</ResponseField>
+
+<ResponseField name="activeTripId" type="string | null">
+  ID of the currently active trip
+</ResponseField>
+
+<ResponseField name="trip" type="TripDto | null">
+  Complete trip data object from the API
+</ResponseField>
+
+<ResponseField name="phase" type="TripPhase">
+  Current trip phase: `'idle'`, `'assigned'`, `'arriving'`, `'in_progress'`, `'completed'`, `'cancelled'`, or `'no_drivers_found'`
+</ResponseField>
+
+<ResponseField name="offerAssignmentId" type="string | null">
+  ID of the current trip offer assignment
+</ResponseField>
+
+<ResponseField name="offerExpiresAt" type="string | null">
+  ISO timestamp when the current offer expires
+</ResponseField>
+
+<ResponseField name="remainingSec" type="number | null">
+  Remaining seconds on the offer countdown timer
+</ResponseField>
+
+<ResponseField name="modalOpen" type="boolean">
+  Whether the trip offer modal is currently open
+</ResponseField>
+
+<ResponseField name="handledAssignments" type="string[]">
+  Array of assignment IDs that have already been accepted or declined
+</ResponseField>
+
+<ResponseField name="passengerSlim" type="object | null">
+  Passenger information subset:
+  - `id` (string): Passenger ID
+  - `name` (string | null): Passenger name
+  - `phoneMasked` (string | null): Masked phone number
+  - `photoUrl` (string | null): Profile photo URL
+</ResponseField>
+
+<ResponseField name="arrivedPickupAt" type="string | null">
+  ISO timestamp when driver marked arrival at pickup location
+</ResponseField>
+
+### Pricing and Waiting Time Fields
+
+<ResponseField name="baseFare" type="number | null">
+  Initial base fare for the trip
+</ResponseField>
+
+<ResponseField name="baseCurrency" type="string | null">
+  Currency code (e.g., "CUP")
+</ResponseField>
+
+<ResponseField name="liveFare" type="number | null">
+  Current fare including any waiting penalties
+</ResponseField>
+
+<ResponseField name="waitingSinceAt" type="string | null">
+  ISO timestamp when waiting period started
+</ResponseField>
+
+<ResponseField name="waitingSeconds" type="number">
+  Total seconds driver has been waiting at pickup
+</ResponseField>
+
+<ResponseField name="waitingPenaltyApplied" type="boolean">
+  Whether a waiting time penalty has been applied
+</ResponseField>
+
+<ResponseField name="waitingPenaltyText" type="string | null">
+  Description text for the waiting penalty
+</ResponseField>
+
+<ResponseField name="waitingExtraFare" type="number | null">
+  Additional fare amount from waiting penalty
+</ResponseField>
+
+<ResponseField name="waitingReason" type="string | null">
+  Reason for the waiting charge
+</ResponseField>
+
+## Computed Signals
+
+### state
+
+```typescript
+readonly state = computed(() => this._s())
+```
+
+Returns the complete state object.
+
+### trip
+
+```typescript
+readonly trip = computed(() => this._s().trip)
+```
+
+Returns the current trip data.
+
+### phase
+
+```typescript
+readonly phase = computed(() => this._s().phase)
+```
+
+Returns the current trip phase.
+
+### remainingSec
+
+```typescript
+readonly remainingSec = computed(() => this._s().remainingSec)
+```
+
+Returns remaining seconds on offer countdown.
+
+### modalOpen
+
+```typescript
+readonly modalOpen = computed(() => this._s().modalOpen)
+```
+
+Returns modal open state.
+
+### baseFare
+
+```typescript
+readonly baseFare = computed(() => this._s().baseFare)
+```
+
+Returns the base fare amount.
+
+### liveFare
+
+```typescript
+readonly liveFare = computed(() => this._s().liveFare ?? this._s().baseFare)
+```
+
+Returns the current live fare, falling back to base fare if not set.
+
+### waitingSeconds
+
+```typescript
+readonly waitingSeconds = computed(() => this._s().waitingSeconds)
+```
+
+Returns total waiting seconds.
+
+### waitingPenaltyApplied
+
+```typescript
+readonly waitingPenaltyApplied = computed(() => this._s().waitingPenaltyApplied)
+```
+
+Returns whether waiting penalty has been applied.
+
+### waitingPenaltyText
+
+```typescript
+readonly waitingPenaltyText = computed(() => this._s().waitingPenaltyText)
+```
+
+Returns the waiting penalty description text.
+
+### modalVm
+
+```typescript
+readonly modalVm = computed(() => ({ ... }))
+```
+
+Computed view model for the trip offer modal, includes:
+- `phase`: Current trip phase
+- `remainingSec`: Countdown timer
+- `originLabel`: Formatted pickup address or coordinates
+- `destinationLabel`: Formatted destination address or coordinates
+- `distanceText`: Formatted distance (e.g., "5.2 km")
+- `durationText`: Formatted duration (e.g., "≈ 15 min")
+- `priceText`: Formatted price (e.g., "250 CUP")
+- Raw values: `distanceKm`, `durationMin`, `total`, `currency`
+
+## State Mutation Methods
+
+### setLoading()
+
+```typescript
+setLoading(): void
+```
+
+Sets loading state and clears any errors.
+
+### setError(msg)
+
+<ParamField path="msg" type="string" required>
+  Error message to display
+</ParamField>
+
+```typescript
+setError(msg: string): void
+```
+
+Sets error state with the provided message.
+
+### setTrip(trip)
+
+<ParamField path="trip" type="TripDto | null" required>
+  Trip data object or null to clear
+</ParamField>
+
+```typescript
+setTrip(trip: TripDto | null): void
+```
+
+Updates the trip data and sets status to success.
+
+### setActiveTripId(id)
+
+<ParamField path="id" type="string | null" required>
+  Trip ID or null to clear
+</ParamField>
+
+```typescript
+setActiveTripId(id: string | null): void
+```
+
+Sets the active trip ID.
+
+### setPhase(phase)
+
+<ParamField path="phase" type="TripPhase" required>
+  New trip phase
+</ParamField>
+
+```typescript
+setPhase(phase: TripPhase): void
+```
+
+Updates the current trip phase.
+
+### setOfferAssignmentId(id)
+
+<ParamField path="id" type="string | null" required>
+  Assignment ID or null to clear
+</ParamField>
+
+```typescript
+setOfferAssignmentId(id: string | null): void
+```
+
+Sets the current offer assignment ID.
+
+### setOfferCountdown(expiresAtIso, remaining)
+
+<ParamField path="expiresAtIso" type="string | null">
+  ISO timestamp when offer expires
+</ParamField>
+
+<ParamField path="remaining" type="number | null">
+  Remaining seconds
+</ParamField>
+
+```typescript
+setOfferCountdown(expiresAtIso?: string | null, remaining?: number | null): void
+```
+
+Sets the offer expiration time and countdown.
+
+### tickCountdown()
+
+```typescript
+tickCountdown(): void
+```
+
+Decrements the countdown timer by 1 second (minimum 0).
+
+### setModalOpen(open)
+
+<ParamField path="open" type="boolean" required>
+  Whether modal should be open
+</ParamField>
+
+```typescript
+setModalOpen(open: boolean): void
+```
+
+Sets the modal open state.
+
+### setPassengerSlim(passenger)
+
+<ParamField path="passenger" type="object | null" required>
+  Passenger information object or null
+</ParamField>
+
+```typescript
+setPassengerSlim(p: DriverTripState['passengerSlim']): void
+```
+
+Sets the passenger information subset.
+
+### markAssignmentHandled(id)
+
+<ParamField path="id" type="string | null" required>
+  Assignment ID to mark as handled
+</ParamField>
+
+```typescript
+markAssignmentHandled(id: string | null): void
+```
+
+Adds the assignment ID to the handled list (prevents duplicate processing).
+
+### isAssignmentHandled(id)
+
+<ParamField path="id" type="string | null" required>
+  Assignment ID to check
+</ParamField>
+
+```typescript
+isAssignmentHandled(id: string | null): boolean
+```
+
+Checks if an assignment has already been handled.
+
+### setArrivedPickup(at)
+
+<ParamField path="at" type="string" required>
+  ISO timestamp of arrival
+</ParamField>
+
+```typescript
+setArrivedPickup(at: string): void
+```
+
+Marks the timestamp when driver arrived at pickup location.
+
+### setInitialFare(total, currency)
+
+<ParamField path="total" type="number | null" required>
+  Initial fare amount
+</ParamField>
+
+<ParamField path="currency" type="string | null" required>
+  Currency code (e.g., "CUP")
+</ParamField>
+
+```typescript
+setInitialFare(total: number | null, currency: string | null): void
+```
+
+Sets the base fare and currency, initializes live fare if not already set.
+
+### startWaiting(atIso)
+
+<ParamField path="atIso" type="string" required>
+  ISO timestamp when waiting started
+</ParamField>
+
+```typescript
+startWaiting(atIso: string): void
+```
+
+Initializes waiting period tracking. Sets `waitingSinceAt` and resets all waiting-related fields.
+
+### tickWaiting(deltaSec)
+
+<ParamField path="deltaSec" type="number" default="1">
+  Seconds to increment (default: 1)
+</ParamField>
+
+```typescript
+tickWaiting(deltaSec = 1): void
+```
+
+Increments the waiting seconds counter.
+
+### applyWaitingPenalty(extra, text)
+
+<ParamField path="extra" type="number" required>
+  Additional fare amount to charge
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Description of the penalty
+</ParamField>
+
+```typescript
+applyWaitingPenalty(extra: number, text: string): void
+```
+
+Applies a waiting penalty to the fare. Updates `liveFare` = `baseFare` + `extra`.
+
+### setWaitingReason(reason)
+
+<ParamField path="reason" type="string | null" required>
+  Reason for the waiting charge
+</ParamField>
+
+```typescript
+setWaitingReason(reason: string | null): void
+```
+
+Sets the waiting charge reason.
+
+### reset()
+
+```typescript
+reset(): void
+```
+
+Resets the entire state to initial values.
+
+## Usage Example
+
+```typescript
+import { Component, inject } from '@angular/core';
+import { TripStore } from '@/app/store/trip/trip.store';
+
+@Component({
+  selector: 'app-trip-status',
+  template: `
+    <div>
+      <p>Phase: {{ tripStore.phase() }}</p>
+      <p>Base Fare: {{ tripStore.baseFare() }} {{ trip()?.fareFinalCurrency }}</p>
+      <p>Live Fare: {{ tripStore.liveFare() }}</p>
+      
+      @if (tripStore.waitingPenaltyApplied()) {
+        <p class="warning">
+          {{ tripStore.waitingPenaltyText() }}
+        </p>
+      }
+      
+      <p>Waiting: {{ tripStore.waitingSeconds() }}s</p>
+    </div>
+  `
+})
+export class TripStatusComponent {
+  tripStore = inject(TripStore);
+  
+  trip = this.tripStore.trip;
+}
+```
+
+## State Flow Example
+
+```typescript
+// 1. Receive offer
+tripStore.setActiveTripId('trip-123');
+tripStore.setOfferAssignmentId('assignment-456');
+tripStore.setPhase('assigned');
+tripStore.setOfferCountdown(expiresAt, 30);
+
+// 2. Accept offer
+tripStore.markAssignmentHandled('assignment-456');
+tripStore.setPhase('assigned');
+
+// 3. Arrive at pickup
+tripStore.setArrivedPickup(new Date().toISOString());
+tripStore.startWaiting(new Date().toISOString());
+tripStore.setPhase('arriving');
+
+// 4. Tick waiting timer every second
+setInterval(() => {
+  tripStore.tickWaiting(1);
+  
+  // Apply penalty after threshold
+  if (tripStore.waitingSeconds() >= 300 && !tripStore.waitingPenaltyApplied()) {
+    const extra = 50;
+    tripStore.applyWaitingPenalty(extra, 'Recargo por espera prolongada');
+    tripStore.setWaitingReason('Pasajero no se presentó a tiempo');
+  }
+}, 1000);
+
+// 5. Start trip
+tripStore.setPhase('in_progress');
+
+// 6. Complete trip
+tripStore.setPhase('completed');
+
+// 7. Reset for next trip
+tripStore.reset();
+```

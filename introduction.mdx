@@ -1,0 +1,107 @@
+---
+title: Introduction
+description: Welcome to Rodando Driver - A powerful mobile application for ride-hailing drivers built with Ionic and Angular
+---
+
+<div style={{
+  background: 'linear-gradient(135deg, #277bfc 0%, #8bbcfc 100%)',
+  padding: '60px 40px',
+  borderRadius: '12px',
+  color: 'white',
+  marginBottom: '40px'
+}}>
+  <h1 style={{ fontSize: '48px', fontWeight: 700, margin: 0, marginBottom: '16px' }}>
+    Rodando Driver
+  </h1>
+  <p style={{ fontSize: '20px', margin: 0, opacity: 0.95 }}>
+    Mobile ride-hailing driver application for managing trips, earnings, and driver operations in real-time
+  </p>
+</div>
+
+## What is Rodando Driver?
+
+Rodando Driver is a comprehensive mobile application built specifically for ride-hailing drivers. Built with Ionic and Angular, it provides a robust platform for managing trip assignments, tracking earnings, and handling all aspects of driver operations with real-time updates through WebSocket integration.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time Trip Management" icon="car" href="/features/trip-management">
+    Accept, track, and complete trips with live updates through WebSocket integration
+  </Card>
+  <Card title="Driver Authentication" icon="lock" href="/features/authentication">
+    Secure authentication with refresh token support and session management
+  </Card>
+  <Card title="Earnings Tracking" icon="dollar-sign" href="/features/earnings-tracking">
+    Monitor your earnings, view trip history, and manage wallet transactions
+  </Card>
+  <Card title="Profile Management" icon="user" href="/features/driver-profile">
+    Manage your driver profile, vehicle information, and account settings
+  </Card>
+  <Card title="Google Maps Integration" icon="map" href="/configuration/google-maps">
+    Integrated mapping for route tracking and navigation
+  </Card>
+  <Card title="Dark Mode Support" icon="moon" href="/guides/dark-mode">
+    Built-in dark mode theme with user preference persistence
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+Rodando Driver is built with modern web technologies optimized for mobile performance:
+
+- **Framework**: Angular 18 with standalone components
+- **Mobile**: Ionic 8 and Capacitor 7 for native mobile capabilities
+- **State Management**: NgRx with signals for reactive state updates
+- **Real-time**: Socket.io client for WebSocket communication
+- **Maps**: Google Maps integration via Angular Google Maps
+- **Styling**: SCSS with Ionic components and custom theming
+
+## How It Works
+
+<Steps>
+  <Step title="Driver Authentication">
+    Drivers log in securely using their credentials. The app supports both web and mobile session management with automatic token refresh.
+  </Step>
+  <Step title="Trip Assignment">
+    When a trip is available, drivers receive real-time notifications through WebSocket. They can view trip details and choose to accept or decline.
+  </Step>
+  <Step title="Trip Lifecycle">
+    Once accepted, drivers progress through the trip lifecycle: arriving at pickup, starting the trip, and completing it with fare calculation.
+  </Step>
+  <Step title="Earnings Management">
+    All completed trips are tracked in the earnings section, with detailed breakdowns of fares, waiting fees, and payment modes.
+  </Step>
+</Steps>
+
+## Quick Links
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your development environment
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/services/auth-service">
+    Explore the API documentation
+  </Card>
+</CardGroup>
+
+## Architecture Highlights
+
+- **Feature-based structure**: Organized by features (auth, tabs, sidebar) for scalability
+- **Lazy loading**: Route-based code splitting for optimal performance
+- **NgRx Signals**: Modern reactive state management with minimal boilerplate
+- **Guards & Interceptors**: Comprehensive authentication and error handling
+- **WebSocket integration**: Real-time trip updates and notifications
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="User Guides" icon="book" href="/guides/accepting-trips">
+    Learn how to use key features
+  </Card>
+  <Card title="Contributing" icon="code-branch" href="/development/contributing">
+    Contribute to the project
+  </Card>
+</CardGroup>
