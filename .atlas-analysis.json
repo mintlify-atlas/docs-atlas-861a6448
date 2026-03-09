@@ -1,0 +1,148 @@
+{
+  "projectType": "saas",
+  "projectName": "Rodando Driver",
+  "projectDescription": "Mobile ride-hailing driver application built with Ionic and Angular for managing trips, earnings, and driver operations in real-time.",
+  "theme": "palm",
+  "primaryColor": "#277bfc",
+  "lightColor": "#8bbcfc",
+  "darkColor": "#041c3c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/trip-management",
+              "features/real-time-updates",
+              "features/earnings-tracking",
+              "features/driver-profile"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/accepting-trips",
+              "guides/managing-availability",
+              "guides/vehicle-setup",
+              "guides/wallet-payments",
+              "guides/dark-mode"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment",
+              "configuration/google-maps",
+              "configuration/capacitor"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Services",
+            "pages": [
+              "api/services/auth-service",
+              "api/services/trip-api-service",
+              "api/services/driver-availability-service",
+              "api/services/user-service"
+            ]
+          },
+          {
+            "group": "State Management",
+            "pages": [
+              "api/state/trip-store",
+              "api/state/trip-facade",
+              "api/state/auth-store"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "api/components/base-map",
+              "api/components/trip-modals",
+              "api/components/layouts"
+            ]
+          },
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/auth-models",
+              "api/models/trip-models",
+              "api/models/user-models"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/architecture-overview",
+              "development/routing-structure",
+              "development/state-management",
+              "development/websocket-integration"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/contributing",
+              "development/code-style",
+              "development/testing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time trip assignment with WebSocket integration",
+    "Complete trip lifecycle management (assigned, arriving, in-progress, completed)",
+    "Driver authentication with refresh token support",
+    "Earnings and wallet management",
+    "Vehicle registration and profile management",
+    "Google Maps integration for route tracking",
+    "Dark mode theme support",
+    "NgRx state management architecture",
+    "Mobile-optimized Ionic UI components",
+    "Push notifications and alerts"
+  ],
+  "publicApiSurface": [
+    "AuthService.login()",
+    "AuthService.refresh()",
+    "AuthService.me()",
+    "TripApiService.getById()",
+    "TripApiService.acceptAssignment()",
+    "TripApiService.declineAssignment()",
+    "TripApiService.markArrivedPickup()",
+    "TripApiService.startTrip()",
+    "TripApiService.completeTrip()",
+    "TripFacade.acceptOffer()",
+    "TripFacade.declineOffer()",
+    "TripFacade.markArrivedPickup()",
+    "TripFacade.startTrip()",
+    "TripFacade.completeTrip()",
+    "DriverAvailabilityApiService",
+    "UserService",
+    "TripStore",
+    "AuthStore",
+    "BaseMapComponent",
+    "TripAssignedModalComponent"
+  ]
+}
